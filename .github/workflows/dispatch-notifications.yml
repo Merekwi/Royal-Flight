@@ -1,0 +1,27 @@
+name: Royal Flight scheduled notifications
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch due Telegram notifications
+        env:
+          CRON_SECRET: ${{ secrets.NOTIFICATION_CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Missing NOTIFICATION_CRON_SECRET repository secret"
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error \
+            -X POST "https://iotwbzzlwltjfddrmhvg.supabase.co/functions/v1/notification-dispatcher" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            --data '{}'
