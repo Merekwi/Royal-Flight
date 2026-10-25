@@ -60,3 +60,70 @@ end;
 $$;
 revoke all on function public.rf_admin_review_order(uuid,bigint,boolean,text) from public,anon,authenticated;
 grant execute on function public.rf_admin_review_order(uuid,bigint,boolean,text) to service_role;
+
+
+-- Roblox account linking and verified online-time mileage.
+create table if not exists public.rf_roblox_link_codes (
+  id uuid primary key default gen_random_uuid(),
+  profile_id uuid not null references public.rf_profiles(id) on delete cascade,
+  code text not null unique,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists rf_roblox_link_codes_expiry_idx on public.rf_roblox_link_codes(expires_at);
+alter table public.rf_roblox_link_codes enable row level security;
+revoke all on public.rf_roblox_link_codes from anon, authenticated;
+
+create or replace function public.rf_roblox_link_account(p_code text,p_roblox_user_id bigint,p_roblox_username text)
+returns jsonb language plpgsql security invoker set search_path=public,pg_temp as $$
+declare v_code public.rf_roblox_link_codes%rowtype; v_profile public.rf_profiles%rowtype;
+begin
+ if current_user not in ('service_role','postgres') then raise exception 'not_authorized' using errcode='42501'; end if;
+ if p_roblox_user_id is null or p_roblox_user_id<=0 or length(trim(coalesce(p_roblox_username,'')))=0 then raise exception 'invalid_roblox_identity'; end if;
+ select * into v_code from public.rf_roblox_link_codes where code=upper(trim(p_code)) and used_at is null and expires_at>now() for update;
+ if not found then raise exception 'link_code_invalid_or_expired'; end if;
+ if exists(select 1 from public.rf_profiles where roblox_user_id=p_roblox_user_id and id<>v_code.profile_id) then raise exception 'roblox_account_already_linked'; end if;
+ update public.rf_profiles set roblox_user_id=p_roblox_user_id,roblox_username=left(trim(p_roblox_username),100),updated_at=now() where id=v_code.profile_id returning * into v_profile;
+ update public.rf_roblox_link_codes set used_at=now() where id=v_code.id;
+ update public.rf_roblox_link_codes set used_at=now() where profile_id=v_code.profile_id and used_at is null;
+ return jsonb_build_object('ok',true,'telegram_id',v_profile.telegram_id,'roblox_user_id',v_profile.roblox_user_id,'roblox_username',v_profile.roblox_username);
+end $$;
+revoke all on function public.rf_roblox_link_account(text,bigint,text) from public,anon,authenticated;
+grant execute on function public.rf_roblox_link_account(text,bigint,text) to service_role;
+
+create or replace function public.rf_roblox_heartbeat(p_roblox_user_id bigint,p_place_id bigint,p_job_id text,p_now timestamptz default now())
+returns jsonb language plpgsql security invoker set search_path=public,pg_temp as $$
+declare v_profile public.rf_profiles%rowtype; v_session public.rf_online_sessions%rowtype;
+ v_elapsed integer:=0; v_total integer:=0; v_new_minutes integer:=0; v_old_minutes integer:=0; v_rate integer:=0; v_delta bigint:=0;
+begin
+ if current_user not in ('service_role','postgres') then raise exception 'not_authorized' using errcode='42501'; end if;
+ select * into v_profile from public.rf_profiles where roblox_user_id=p_roblox_user_id;
+ if not found then return jsonb_build_object('ok',false,'reason','account_not_linked'); end if;
+ select * into v_session from public.rf_online_sessions where roblox_user_id=p_roblox_user_id and job_id=p_job_id for update;
+ if not found then
+   insert into public.rf_online_sessions(roblox_user_id,place_id,job_id,started_at,last_heartbeat_at,credited_seconds)
+   values(p_roblox_user_id,p_place_id,p_job_id,p_now,p_now,0) returning * into v_session;
+ else
+   if v_session.ended_at is not null then
+     update public.rf_online_sessions set place_id=p_place_id,started_at=p_now,last_heartbeat_at=p_now,ended_at=null,credited_seconds=0 where id=v_session.id returning * into v_session;
+   else
+     v_elapsed:=greatest(0,least(90,floor(extract(epoch from (p_now-v_session.last_heartbeat_at)))::integer));
+     v_total:=v_session.credited_seconds+v_elapsed;
+     v_old_minutes:=floor(v_session.credited_seconds/60.0)::integer;
+     v_new_minutes:=floor(v_total/60.0)::integer;
+     select coalesce((value #>> '{}')::integer,10) into v_rate from public.rf_settings where key='miles_per_minute';
+     v_delta:=(v_new_minutes-v_old_minutes)*coalesce(v_rate,10);
+     update public.rf_online_sessions set place_id=p_place_id,last_heartbeat_at=p_now,credited_seconds=v_total where id=v_session.id;
+     if v_delta>0 then
+       update public.rf_profiles set miles=miles+v_delta,updated_at=now() where id=v_profile.id;
+       insert into public.rf_mile_ledger(profile_id,delta,reason,source_key,metadata)
+       values(v_profile.id,v_delta,'roblox_online_minutes','roblox:'||p_roblox_user_id||':'||p_job_id||':'||v_new_minutes::text,
+         jsonb_build_object('place_id',p_place_id,'job_id',p_job_id,'credited_seconds',v_total,'miles_per_minute',coalesce(v_rate,10)));
+     end if;
+   end if;
+ end if;
+ return jsonb_build_object('ok',true,'credited_seconds',coalesce(v_session.credited_seconds,0),'miles_added',v_delta);
+end $$;
+revoke all on function public.rf_roblox_heartbeat(bigint,bigint,text,timestamptz) from public,anon,authenticated;
+grant execute on function public.rf_roblox_heartbeat(bigint,bigint,text,timestamptz) to service_role;
