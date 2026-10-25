@@ -127,3 +127,11 @@ begin
 end $$;
 revoke all on function public.rf_roblox_heartbeat(bigint,bigint,text,timestamptz) from public,anon,authenticated;
 grant execute on function public.rf_roblox_heartbeat(bigint,bigint,text,timestamptz) to service_role;
+
+-- Cover frequently queried foreign keys.
+create index if not exists rf_flight_registrations_profile_idx on public.rf_flight_registrations(profile_id);
+create index if not exists rf_orders_payment_method_idx on public.rf_orders(payment_method_id);
+create index if not exists rf_orders_profile_idx on public.rf_orders(profile_id);
+create index if not exists rf_orders_service_idx on public.rf_orders(service_id);
+create index if not exists rf_roblox_link_codes_profile_idx on public.rf_roblox_link_codes(profile_id);
+create index if not exists rf_subscriptions_service_idx on public.rf_subscriptions(service_id);
