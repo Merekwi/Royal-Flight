@@ -106,6 +106,18 @@ Deno.serve(async (req) => {
         .select("id,order_number,status,created_at").maybeSingle();
       if (updated.error) return json({ error: "order_update_failed" }, 500);
       if (!updated.data) return json({ error: "order_not_found_or_not_payable" }, 409);
+      if (botToken) {
+        const [admins, fullOrder] = await Promise.all([
+          db.from("rf_profiles").select("telegram_id").in("role", ["admin","owner"]),
+          db.from("rf_orders").select("order_number,amount,currency").eq("id", updated.data.id).single()
+        ]);
+        const orderInfo = fullOrder.data;
+        if (admins.data && orderInfo) {
+          for (const a of admins.data) {
+            try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:a.telegram_id,text:"Новая заявка на проверку оплаты\\nЗаказ: "+orderInfo.order_number+"\\nСумма: "+orderInfo.amount+" "+orderInfo.currency,disable_web_page_preview:true})}); } catch {}
+          }
+        }
+      }
       return json({ order: updated.data });
     }
 
@@ -116,6 +128,21 @@ Deno.serve(async (req) => {
       const result = await db.rpc("rf_admin_review_order", { p_order_id: body.orderId, p_admin_telegram_id: telegram.id,
         p_paid: body.paid, p_note: typeof body.note === "string" ? body.note.slice(0,500) : null });
       if (result.error) return json({ error: "review_failed", detail: result.error.message }, 409);
+      if (botToken) {
+        const order = await db.from("rf_orders").select("order_number,profile_id,service_id").eq("id",body.orderId).single();
+        if (order.data) {
+          const [recipient, service, subscription] = await Promise.all([
+            db.from("rf_profiles").select("telegram_id").eq("id",order.data.profile_id).single(),
+            db.from("rf_services").select("name").eq("id",order.data.service_id).single(),
+            db.from("rf_subscriptions").select("ends_at").eq("source_order_id",body.orderId).maybeSingle()
+          ]);
+          if (recipient.data) {
+            const statusText = body.paid ? "Оплата подтверждена. Услуга активирована." : "Оплата не подтверждена. Заявка отклонена.";
+            const expiryText = subscription.data?.ends_at ? "\\nДействует до: "+new Date(subscription.data.ends_at).toLocaleString("ru-RU") : "";
+            try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:recipient.data.telegram_id,text:statusText+"\\nЗаказ: "+order.data.order_number+(service.data?.name?"\\nУслуга: "+service.data.name:"")+expiryText+(typeof body.note==="string"&&body.note.trim()?"\\nКомментарий: "+body.note.trim().slice(0,300):""),disable_web_page_preview:true})}); } catch {}
+          }
+        }
+      }
       return json({ result: result.data });
     }
 
