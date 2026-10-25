@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === "admin_set_roblox_places") {
-      const ids = Array.isArray(body.placeIds) ? body.placeIds.map((x: unknown) => String(x).trim()).filter((x: string) => /^\\d{1,20}$/.test(x)).slice(0,20) : [];
+      const ids = Array.isArray(body.placeIds) ? body.placeIds.map((x: unknown) => String(x).trim()).filter((x: string) => /^[0-9]{1,20}$/.test(x)).slice(0,20) : [];
       if(ids.length===0) return json({error:"at_least_one_place_id_required"},400);
       const result=await db.from("rf_settings").upsert({key:"roblox_place_ids",value:ids,updated_at:new Date().toISOString(),updated_by:telegram.id}).select().single();
       if(result.error) return json({error:"roblox_places_save_failed"},500);
