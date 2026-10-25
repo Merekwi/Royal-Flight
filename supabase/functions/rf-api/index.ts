@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       const [flights, services, orders, subscriptions, ledger, announcements, paymentMethods] = await Promise.all([
         db.from("rf_flights").select("id,title,flight_number,origin,destination,aircraft,departure_at,registration_deadline,capacity,status,description").in("status", ["scheduled","boarding"]).gte("departure_at", now).order("departure_at").limit(20),
         db.from("rf_services").select("id,code,name,description,price,currency,duration_days").eq("active", true).order("sort_order"),
-        db.from("rf_orders").select("id,order_number,service_id,amount,currency,status,created_at,paid_at,admin_note").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(20),
+        db.from("rf_orders").select("id,order_number,service_id,payment_method_id,amount,currency,status,created_at,paid_at,admin_note").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(20),
         db.from("rf_subscriptions").select("id,service_id,starts_at,ends_at,status").eq("profile_id", profile.id).eq("status","active").gt("ends_at", now).order("ends_at"),
         db.from("rf_mile_ledger").select("id,delta,reason,created_at,metadata").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(30),
         db.from("rf_notifications").select("id,title,body,sent_at,created_at").eq("status","sent").order("sent_at", { ascending: false }).limit(10),
@@ -156,10 +156,31 @@ Deno.serve(async (req) => {
       const n=body.notification||{};
       if(!validText(n.title,120)||!validText(n.body,2000))return json({error:"invalid_notification"},400);
       const scheduledAt=validText(n.scheduledAt,50)&&!Number.isNaN(Date.parse(n.scheduledAt))?new Date(n.scheduledAt).toISOString():null;
-      const result=await db.from("rf_notifications").insert({title:n.title.trim(),body:n.body.trim(),audience:["all","admins","roblox_linked","active_service"].includes(n.audience)?n.audience:"all",scheduled_at:scheduledAt,status:scheduledAt?"scheduled":"draft",created_by:telegram.id}).select().single();
+      const audience=["all","admins","roblox_linked","active_service"].includes(n.audience)?n.audience:"all";
+      const result=await db.from("rf_notifications").insert({title:n.title.trim(),body:n.body.trim(),audience,scheduled_at:scheduledAt,status:scheduledAt?"scheduled":"draft",created_by:telegram.id}).select().single();
       if(result.error)return json({error:"notification_save_failed"},500);
-      await db.from("rf_admin_audit").insert({admin_telegram_id:telegram.id,action:"notification_created",entity_type:"notification",entity_id:result.data.id,details:{title:result.data.title}});
-      return json({notification:result.data});
+      let delivery={sent:0,failed:0};
+      if(!scheduledAt){
+        const targets=await db.from("rf_profiles").select("telegram_id,role,roblox_user_id,id");
+        if(targets.error)return json({error:"notification_targets_failed"},500);
+        let selected=targets.data||[];
+        if(audience==="admins")selected=selected.filter(x=>x.role==="admin"||x.role==="owner");
+        if(audience==="roblox_linked")selected=selected.filter(x=>x.roblox_user_id!==null);
+        if(audience==="active_service"){
+          const active=await db.from("rf_subscriptions").select("profile_id").eq("status","active").gt("ends_at",new Date().toISOString());
+          const ids=new Set((active.data||[]).map(x=>x.profile_id));selected=selected.filter(x=>ids.has(x.id));
+        }
+        if(!botToken)return json({error:"telegram_bot_not_configured",notification:result.data},503);
+        for(const target of selected){
+          try{
+            const sent=await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:target.telegram_id,text:"✈ "+n.title.trim()+"\n\n"+n.body.trim(),disable_web_page_preview:true})});
+            const payload=await sent.json();if(sent.ok&&payload.ok)delivery.sent++;else delivery.failed++;
+          }catch{delivery.failed++;}
+        }
+        await db.from("rf_notifications").update({status:delivery.failed===0?"sent":(delivery.sent>0?"sent":"failed"),sent_at:delivery.sent>0?new Date().toISOString():null}).eq("id",result.data.id);
+      }
+      await db.from("rf_admin_audit").insert({admin_telegram_id:telegram.id,action:"notification_created",entity_type:"notification",entity_id:result.data.id,details:{title:result.data.title,audience,delivery}});
+      return json({notification:result.data,delivery});
     }
 
     if (action === "admin_set_miles_rate") {
