@@ -59,6 +59,16 @@ Deno.serve(async (req) => {
     const admin = profile.role === "admin" || profile.role === "owner";
     const action = body.action;
 
+    if (action === "create_roblox_link") {
+      const codeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const bytes = crypto.getRandomValues(new Uint8Array(8));
+      const linkCode = Array.from(bytes, b => codeChars[b % codeChars.length]).join("");
+      await db.from("rf_roblox_link_codes").update({used_at:new Date().toISOString()}).eq("profile_id",profile.id).is("used_at",null);
+      const created = await db.from("rf_roblox_link_codes").insert({profile_id:profile.id,code:linkCode,expires_at:new Date(Date.now()+10*60*1000).toISOString()}).select("expires_at").single();
+      if(created.error) return json({error:"roblox_link_code_failed"},500);
+      return json({linkCode,expiresAt:created.data.expires_at,minutesValid:10});
+    }
+
     if (action === "dashboard") {
       const now = new Date().toISOString();
       const [flights, services, orders, subscriptions, ledger, announcements, paymentMethods] = await Promise.all([
@@ -208,6 +218,15 @@ Deno.serve(async (req) => {
       }
       await db.from("rf_admin_audit").insert({admin_telegram_id:telegram.id,action:"notification_created",entity_type:"notification",entity_id:result.data.id,details:{title:result.data.title,audience,delivery}});
       return json({notification:result.data,delivery});
+    }
+
+    if (action === "admin_set_roblox_places") {
+      const ids = Array.isArray(body.placeIds) ? body.placeIds.map((x: unknown) => String(x).trim()).filter((x: string) => /^\\d{1,20}$/.test(x)).slice(0,20) : [];
+      if(ids.length===0) return json({error:"at_least_one_place_id_required"},400);
+      const result=await db.from("rf_settings").upsert({key:"roblox_place_ids",value:ids,updated_at:new Date().toISOString(),updated_by:telegram.id}).select().single();
+      if(result.error) return json({error:"roblox_places_save_failed"},500);
+      await db.from("rf_admin_audit").insert({admin_telegram_id:telegram.id,action:"roblox_places_updated",entity_type:"setting",entity_id:"roblox_place_ids",details:{placeIds:ids}});
+      return json({placeIds:ids});
     }
 
     if (action === "admin_set_miles_rate") {
