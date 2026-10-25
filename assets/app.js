@@ -14,10 +14,16 @@
   const money=(v,c='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:c,maximumFractionDigits:2}).format(Number(v||0));
   async function call(action,extra={}){if(!tg?.initData)throw new Error('Откройте приложение через Telegram.');const r=await fetch(URL+'/functions/v1/rf-api',{method:'POST',headers:{'Content-Type':'application/json','apikey':KEY},body:JSON.stringify({initData:tg.initData,action,...extra}),cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.message||d.error||'Ошибка сервера');return d}
   async function signIn(){
-    if(!tg?.initData)return;
+    const identity=document.getElementById('telegramIdentity');
+    if(!tg?.initData){
+      if(identity)identity.textContent='Telegram не передал данные входа. Закройте окно и откройте Mini App кнопкой в боте Royal Flight.';
+      document.getElementById('profileName').textContent='Ожидание авторизации';
+      return;
+    }
+    if(identity)identity.textContent='Проверяем данные Telegram…';
     try{
       const r=await fetch(URL+'/functions/v1/telegram-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':KEY},body:JSON.stringify({initData:tg.initData}),cache:'no-store'});
-      const d=await r.json();if(!r.ok||!d.profile){console.warn('Telegram authentication is not configured yet:',d.error);return}
+      const d=await r.json();if(!r.ok||!d.profile){console.warn('Telegram authentication failed:',d);if(identity)identity.textContent=d.message||('Ошибка авторизации: '+(d.error||r.status));return}
       const p=d.profile,name=p.display_name||'Пассажир Royal Flight';
       document.getElementById('profileName').textContent=name;
       document.getElementById('welcomeName').textContent=name+', добро пожаловать в Royal Flight';
@@ -26,7 +32,7 @@
       document.getElementById('avatarInitials').textContent=initials;document.getElementById('profileAvatar').textContent=initials;
       if(p.role==='admin'||p.role==='owner')document.getElementById('adminNav').hidden=false;
       await loadDashboard();
-    }catch(e){console.warn('Royal Flight backend is not ready yet.')}
+    }catch(e){console.warn('Royal Flight backend is not ready yet:',e);if(identity)identity.textContent='Не удалось связаться с сервером. Проверьте подключение и перезапустите Mini App.'}
   }
   async function loadDashboard(){try{dashboard=await call('dashboard');render(dashboard)}catch(e){console.warn('Dashboard unavailable:',e.message)}}
   function render(d){
