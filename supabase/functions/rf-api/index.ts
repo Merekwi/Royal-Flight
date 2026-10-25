@@ -61,15 +61,16 @@ Deno.serve(async (req) => {
 
     if (action === "dashboard") {
       const now = new Date().toISOString();
-      const [flights, services, orders, subscriptions, ledger, announcements] = await Promise.all([
+      const [flights, services, orders, subscriptions, ledger, announcements, paymentMethods] = await Promise.all([
         db.from("rf_flights").select("id,title,flight_number,origin,destination,aircraft,departure_at,registration_deadline,capacity,status,description").in("status", ["scheduled","boarding"]).gte("departure_at", now).order("departure_at").limit(20),
         db.from("rf_services").select("id,code,name,description,price,currency,duration_days").eq("active", true).order("sort_order"),
         db.from("rf_orders").select("id,order_number,service_id,amount,currency,status,created_at,paid_at,admin_note").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(20),
         db.from("rf_subscriptions").select("id,service_id,starts_at,ends_at,status").eq("profile_id", profile.id).eq("status","active").gt("ends_at", now).order("ends_at"),
         db.from("rf_mile_ledger").select("id,delta,reason,created_at,metadata").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(30),
-        db.from("rf_notifications").select("id,title,body,sent_at,created_at").eq("status","sent").order("sent_at", { ascending: false }).limit(10)
+        db.from("rf_notifications").select("id,title,body,sent_at,created_at").eq("status","sent").order("sent_at", { ascending: false }).limit(10),
+        db.from("rf_payment_methods").select("id,label,card_number,recipient_name,instructions").eq("active", true).order("created_at")
       ]);
-      const err = [flights,services,orders,subscriptions,ledger,announcements].find(x=>x.error);
+      const err = [flights,services,orders,subscriptions,ledger,announcements,paymentMethods].find(x=>x.error);
       if (err) return json({ error: "dashboard_load_failed" }, 500);
       let pendingOrders: unknown[] = [];
       if (admin) {
@@ -77,7 +78,7 @@ Deno.serve(async (req) => {
         if (!pending.error) pendingOrders = pending.data || [];
       }
       return json({ profile, flights: flights.data || [], services: services.data || [], orders: orders.data || [],
-        subscriptions: subscriptions.data || [], mileLedger: ledger.data || [], announcements: announcements.data || [],
+        subscriptions: subscriptions.data || [], mileLedger: ledger.data || [], announcements: announcements.data || [], paymentMethods: paymentMethods.data || [],
         admin: admin ? { pendingOrders } : null });
     }
 
