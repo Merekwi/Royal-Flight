@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
         const orderInfo = fullOrder.data;
         if (admins.data && orderInfo) {
           for (const a of admins.data) {
-            try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:a.telegram_id,text:"Новая заявка на проверку оплаты\\nЗаказ: "+orderInfo.order_number+"\\nСумма: "+orderInfo.amount+" "+orderInfo.currency,disable_web_page_preview:true})}); } catch {}
+            try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:a.telegram_id,text:"Новая заявка на проверку оплаты\nЗаказ: "+orderInfo.order_number+"\nСумма: "+orderInfo.amount+" "+orderInfo.currency,disable_web_page_preview:true})}); } catch {}
           }
         }
       }
@@ -153,8 +153,8 @@ Deno.serve(async (req) => {
           ]);
           if (recipient.data) {
             const statusText = body.paid ? "Оплата подтверждена. Услуга активирована." : "Оплата не подтверждена. Заявка отклонена.";
-            const expiryText = subscription.data?.ends_at ? "\\nДействует до: "+new Date(subscription.data.ends_at).toLocaleString("ru-RU") : "";
-            try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:recipient.data.telegram_id,text:statusText+"\\nЗаказ: "+order.data.order_number+(service.data?.name?"\\nУслуга: "+service.data.name:"")+expiryText+(typeof body.note==="string"&&body.note.trim()?"\\nКомментарий: "+body.note.trim().slice(0,300):""),disable_web_page_preview:true})}); } catch {}
+            const expiryText = subscription.data?.ends_at ? "\nДействует до: "+new Date(subscription.data.ends_at).toLocaleString("ru-RU") : "";
+            try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:recipient.data.telegram_id,text:statusText+"\nЗаказ: "+order.data.order_number+(service.data?.name?"\nУслуга: "+service.data.name:"")+expiryText+(typeof body.note==="string"&&body.note.trim()?"\nКомментарий: "+body.note.trim().slice(0,300):""),disable_web_page_preview:true})}); } catch {}
           }
         }
       }
