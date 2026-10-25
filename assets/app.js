@@ -8,7 +8,7 @@
   function notify(s){toast.textContent=s;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2800);if(tg?.HapticFeedback)tg.HapticFeedback.impactOccurred('light')}
   function openPage(name){const p=document.getElementById('page-'+name);if(!p)return;pages.forEach(x=>x.classList.toggle('active',x===p));nav.forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(tg?.HapticFeedback)tg.HapticFeedback.selectionChanged()}
   document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>openPage(x.dataset.page)));
-  document.getElementById('profileShortcut').addEventListener('click',()=>openPage('profile'));
+  document.getElementById('profileShortcut')?.addEventListener('click',()=>openPage('profile'));
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=v=>v?new Date(v).toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
   const money=(v,c='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:c,maximumFractionDigits:2}).format(Number(v||0));
@@ -29,7 +29,7 @@
       document.getElementById('welcomeName').textContent=name+', добро пожаловать в Royal Flight';
       document.getElementById('telegramIdentity').textContent=p.telegram_username?'@'+p.telegram_username:'Telegram ID: '+p.telegram_id;
       const initials=name.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'RF';
-      document.getElementById('avatarInitials').textContent=initials;document.getElementById('profileAvatar').textContent=initials;
+      const avatarInitials=document.getElementById('avatarInitials');if(avatarInitials)avatarInitials.textContent=initials;document.getElementById('profileAvatar').textContent=initials;
       if(p.role==='admin'||p.role==='owner')document.getElementById('adminNav').hidden=false;
       await loadDashboard();
     }catch(e){console.warn('Royal Flight backend is not ready yet:',e);if(identity)identity.textContent='Не удалось связаться с сервером. Проверьте подключение и перезапустите Mini App.'}
