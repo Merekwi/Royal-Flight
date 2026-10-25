@@ -67,12 +67,18 @@ Deno.serve(async (req) => {
     if (!verified) return new Response(JSON.stringify({ error: "telegram_verification_failed" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data, error } = await db.from("rf_profiles").upsert({
+    const ownerSetting = await db.from("rf_settings").select("value").eq("key","owner_telegram_id").maybeSingle();
+    const ownerValue = ownerSetting.data?.value;
+    const isConfiguredOwner = ownerValue !== null && ownerValue !== undefined && String(ownerValue).replace(/^"|"$/g,"") === verified.telegram_id;
+    const profilePatch = {
       telegram_id: verified.telegram_id,
       telegram_username: verified.telegram_username || null,
       display_name: verified.display_name || null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "telegram_id" }).select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").single();
+      ...(isConfiguredOwner ? { role: "owner" } : {}),
+    };
+    const { data, error } = await db.from("rf_profiles").upsert(profilePatch, { onConflict: "telegram_id" })
+      .select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").single();
 
     if (error || !data) {
       console.error("profile_upsert_failed", error?.message);
