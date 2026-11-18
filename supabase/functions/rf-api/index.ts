@@ -67,7 +67,15 @@ Deno.serve(async (req) => {
       return json({ error: "profile_unavailable", message: "База данных не смогла сохранить профиль Telegram." }, 503);
     }
 
-    const admin = profile.role === "admin" || profile.role === "owner";
+    const staffMembership = await db.from("rf_airline_staff").select("role").eq("profile_id", profile.id).eq("airline_code", airlineCode).maybeSingle();
+    if (staffMembership.error) {
+      console.error("airline_staff_lookup_failed", staffMembership.error.message);
+      return json({ error: "staff_access_check_failed" }, 503);
+    }
+    const isOwner = profile.role === "owner";
+    const airlineRole = isOwner ? "owner" : (staffMembership.data?.role || "member");
+    const portalProfile = { ...profile, role: airlineRole };
+    const admin = isOwner || airlineRole === "admin";
     const action = body.action;
 
     if (action === "create_roblox_link") {
@@ -115,8 +123,16 @@ Deno.serve(async (req) => {
         if (!pending.error) pendingOrders = pending.data || [];
         if (!users.error) adminUsers = users.data || [];
       }
-      return json({ airlineCode, profile, flights: flights.data || [], services: services.data || [], orders: orders.data || [],
-        subscriptions: subscriptions.data || [], mileLedger: ledger.data || [], announcements: announcements.data || [], paymentMethods: paymentMethods.data || [],
+      const serviceById = new Map((services.data || []).map((s) => [s.id, s]));
+      const activeSubscriptions = (subscriptions.data || []).map((s) => ({ ...s, service: serviceById.get(s.service_id) || null }));
+      if (admin) {
+        const staff = await db.from("rf_airline_staff").select("profile_id,role").eq("airline_code", airlineCode);
+        if (staff.error) return json({ error: "airline_staff_load_failed" }, 503);
+        const roleByProfile = new Map((staff.data || []).map((s) => [s.profile_id, s.role]));
+        adminUsers = adminUsers.map((u: any) => ({ ...u, role: u.role === "owner" ? "owner" : (roleByProfile.get(u.id) || "member") }));
+      }
+      return json({ airlineCode, profile: portalProfile, flights: flights.data || [], services: services.data || [], orders: orders.data || [],
+        subscriptions: activeSubscriptions, mileLedger: ledger.data || [], announcements: announcements.data || [], paymentMethods: paymentMethods.data || [],
         admin: admin ? { pendingOrders, users: adminUsers } : null });
     }
 
@@ -147,12 +163,16 @@ Deno.serve(async (req) => {
       if (!updated.data) return json({ error: "order_not_found_or_not_payable" }, 409);
       if (botToken) {
         const [admins, fullOrder] = await Promise.all([
-          db.from("rf_profiles").select("telegram_id").in("role", ["admin","owner"]),
+          db.from("rf_profiles").select("telegram_id,id").eq("role","owner"),
           db.from("rf_orders").select("order_number,amount,currency").eq("id", updated.data.id).eq("airline_code", airlineCode).single()
         ]);
+        const carrierStaff = await db.from("rf_airline_staff").select("profile_id").eq("airline_code", airlineCode);
+        const ownerIds = (admins.data || []).map((a) => a.id);
+        const recipientProfileIds = new Set([...(carrierStaff.data || []).map((s) => s.profile_id), ...ownerIds]);
+        const notifyRows = await db.from("rf_profiles").select("id,telegram_id").in("id", Array.from(recipientProfileIds));
         const orderInfo = fullOrder.data;
-        if (admins.data && orderInfo) {
-          for (const a of admins.data) {
+        if (notifyRows.data && orderInfo) {
+          for (const a of notifyRows.data) {
             try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:a.telegram_id,text:"Новая заявка на проверку оплаты\nЗаказ: "+orderInfo.order_number+"\nСумма: "+orderInfo.amount+" "+orderInfo.currency,disable_web_page_preview:true})}); } catch {}
           }
         }
@@ -190,23 +210,31 @@ Deno.serve(async (req) => {
       if(!userId)return json({error:"profile_id_required"},400);
       const role=body.role;
       const hasRole=role==="member"||role==="admin";
-      if(hasRole&&profile.role!=="owner")return json({error:"owner_required_to_change_roles"},403);
-      if(userId===profile.id&&role==="member"&&profile.role==="owner")return json({error:"cannot_remove_own_owner_role"},409);
-      const target=await db.from("rf_profiles").select("id,telegram_id,role,miles").eq("id",userId).maybeSingle();
+      if(hasRole&&!isOwner)return json({error:"owner_required_to_change_roles"},403);
+      if(body.milesDelta!==undefined&&!isOwner)return json({error:"alliance_owner_required_to_adjust_miles"},403);
+      const target=await db.from("rf_profiles").select("id,telegram_id,role,miles,display_name,telegram_username,roblox_username").eq("id",userId).maybeSingle();
       if(!target.data)return json({error:"user_not_found"},404);
-      const patch:Record<string,unknown>={updated_at:new Date().toISOString()};
-      if(hasRole)patch.role=role;
-      let delta=0;
-      if(body.milesDelta!==undefined){
-        delta=Number(body.milesDelta);
-        if(!Number.isInteger(delta)||Math.abs(delta)>1000000||target.data.miles+delta<0)return json({error:"invalid_miles_adjustment"},400);
-        if(delta!==0)patch.miles=target.data.miles+delta;
+      if(hasRole){
+        if(role==="admin"){
+          const assignment=await db.from("rf_airline_staff").upsert({profile_id:userId,airline_code:airlineCode,role:"admin",created_by:telegram.id},{onConflict:"profile_id,airline_code"}).select().single();
+          if(assignment.error)return json({error:"airline_admin_assignment_failed"},500);
+        }else{
+          const removed=await db.from("rf_airline_staff").delete().eq("profile_id",userId).eq("airline_code",airlineCode);
+          if(removed.error)return json({error:"airline_admin_removal_failed"},500);
+        }
       }
-      const saved=await db.from("rf_profiles").update(patch).eq("id",userId).select("id,telegram_id,role,miles,display_name,telegram_username,roblox_username").single();
-      if(saved.error)return json({error:"user_update_failed"},500);
-      if(delta!==0)await db.from("rf_mile_ledger").insert({profile_id:userId,delta,reason:"admin_adjustment",metadata:{admin_telegram_id:telegram.id}});
-      await db.from("rf_admin_audit").insert({airline_code:airlineCode,admin_telegram_id:telegram.id,action:"user_updated",entity_type:"profile",entity_id:userId,details:{role:hasRole?role:target.data.role,milesDelta:delta}});
-      return json({user:saved.data});
+      let milesResult=null;
+      if(body.milesDelta!==undefined){
+        const delta=Number(body.milesDelta);
+        if(!Number.isSafeInteger(delta)||delta===0||Math.abs(delta)>1000000)return json({error:"invalid_miles_adjustment"},400);
+        const adjusted=await db.rpc("rf_adjust_alliance_miles",{p_profile_id:userId,p_admin_telegram_id:telegram.id,p_delta:delta});
+        if(adjusted.error)return json({error:"alliance_miles_adjustment_failed",detail:adjusted.error.message},409);
+        milesResult=adjusted.data;
+      }
+      const staffForTarget=await db.from("rf_airline_staff").select("role").eq("profile_id",userId).eq("airline_code",airlineCode).maybeSingle();
+      const targetRole=target.data.role==="owner"?"owner":(staffForTarget.data?.role||"member");
+      await db.from("rf_admin_audit").insert({airline_code:airlineCode,admin_telegram_id:telegram.id,action:"user_updated",entity_type:"profile",entity_id:userId,details:{role:targetRole,milesDelta:body.milesDelta===undefined?0:Number(body.milesDelta)}});
+      return json({user:{...target.data,role:targetRole,miles:milesResult?.miles??target.data.miles}});
     }
 
     if (action === "admin_create_flight") {
@@ -254,7 +282,12 @@ Deno.serve(async (req) => {
         const targets=await db.from("rf_profiles").select("telegram_id,role,roblox_user_id,id");
         if(targets.error)return json({error:"notification_targets_failed"},500);
         let selected=targets.data||[];
-        if(audience==="admins")selected=selected.filter(x=>x.role==="admin"||x.role==="owner");
+        if(audience==="admins"){
+          const staff=await db.from("rf_airline_staff").select("profile_id").eq("airline_code",airlineCode);
+          if(staff.error)return json({error:"notification_staff_lookup_failed"},503);
+          const staffIds=new Set((staff.data||[]).map(x=>x.profile_id));
+          selected=selected.filter(x=>x.role==="owner"||staffIds.has(x.id));
+        }
         if(audience==="roblox_linked")selected=selected.filter(x=>x.roblox_user_id!==null);
         if(audience==="active_service"){
           const active=await db.from("rf_subscriptions").select("profile_id").eq("airline_code", airlineCode).eq("status","active").gt("ends_at",new Date().toISOString());
