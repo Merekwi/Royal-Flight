@@ -21,7 +21,8 @@ Deno.serve(async (req) => {
     const placeId = Number(body?.placeId);
     const jobId = typeof body?.jobId === "string" ? body.jobId.slice(0, 100) : "";
     const action = body?.action;
-    if (!Number.isSafeInteger(userId) || userId <= 0 || !Number.isSafeInteger(placeId) || placeId <= 0 || !jobId) {
+    if (!Number.isSafeInteger(placeId) || placeId <= 0 || !jobId ||
+        (action !== "heartbeat_batch" && (!Number.isSafeInteger(userId) || userId <= 0))) {
       return json({ error: "invalid_request" }, 400);
     }
     const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -117,6 +118,35 @@ Deno.serve(async (req) => {
         return json({ error: activation.data?.reason || "gamepass_not_activated", result: activation.data }, 409);
       }
       return json(activation.data);
+    }
+
+    if (action === "heartbeat_batch") {
+      const rawPlayers = Array.isArray(body?.players) ? body.players : null;
+      if (!rawPlayers || rawPlayers.length > 100) return json({ error: "invalid_players_list" }, 400);
+      const playerIds = [...new Set(rawPlayers.map((value: unknown) => Number(value)))];
+      if (playerIds.some((id: number) => !Number.isSafeInteger(id) || id <= 0)) {
+        return json({ error: "invalid_players_list" }, 400);
+      }
+      const now = new Date().toISOString();
+      const results = [];
+      for (const playerId of playerIds) {
+        const result = await db.rpc("rf_roblox_heartbeat", {
+          p_roblox_user_id: playerId, p_place_id: placeId, p_job_id: jobId, p_now: now
+        });
+        if (result.error) {
+          console.error("roblox_batch_heartbeat_failed", playerId, result.error.message);
+          results.push({ robloxUserId: playerId, ok: false, reason: "heartbeat_failed" });
+        } else {
+          results.push({ robloxUserId: playerId, ...(result.data || { ok: true }) });
+        }
+      }
+      return json({
+        ok: true,
+        processed: results.length,
+        linked: results.filter((item: any) => item.ok === true).length,
+        unlinked: results.filter((item: any) => item.reason === "account_not_linked").length,
+        results
+      });
     }
 
     if (action === "heartbeat") {
