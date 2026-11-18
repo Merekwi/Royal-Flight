@@ -10,8 +10,8 @@
   document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>openPage(x.dataset.page)));
   document.getElementById('profileShortcut')?.addEventListener('click',()=>openPage('profile'));
   const airlines={
-    royal:{code:'royal',name:'ROYAL FLIGHT',sub:'PASSENGER CLUB',miles:'ROYAL MILES',initials:'RF',logo:'./assets/royal-flight-logo.svg',title:'Royal Flight',theme:'royal',currency:'RUB',welcomeEyebrow:'ВАШЕ ПУТЕШЕСТВИЕ НАЧИНАЕТСЯ ЗДЕСЬ',welcomeCopy:'Участник программы Royal Flight Passenger Club',milesDescription:'Отдельный баланс Royal Miles и история операций Royal Flight.',serviceDescription:'Услуги и привилегии Royal Flight для участников программы.',serviceIntro:'Путешествуйте с комфортом',roblox:true,watermark:'RF',flightTag:'RF FLIGHT'},
-    azal:{code:'azal',name:'AZAL',sub:'AZERBAIJAN AIRLINES',miles:'AZAL MILES',initials:'AZ',logo:'https://upload.wikimedia.org/wikipedia/commons/4/4d/Azerbaijan_Airlines_logo.svg',title:'AZAL',theme:'azal',currency:'AZN',welcomeEyebrow:'AZERBAIJAN AIRLINES · PASSENGER PORTAL',welcomeCopy:'Личный кабинет пассажира Azerbaijan Airlines',milesDescription:'Отдельный баланс AZAL Miles и история операций программы лояльности.',serviceDescription:'Услуги и предложения Azerbaijan Airlines. Каталог AZAL не связан с Royal Flight.',serviceIntro:'Откройте возможности AZAL',roblox:false,watermark:'AZAL',flightTag:'AZAL FLIGHT'}
+    royal:{code:'royal',name:'ROYAL FLIGHT',sub:'PASSENGER CLUB',miles:'ALLIANCE MILES',initials:'RF',logo:'./assets/royal-flight-logo.svg',title:'Royal Flight',theme:'royal',currency:'RUB',welcomeEyebrow:'ВАШЕ ПУТЕШЕСТВИЕ НАЧИНАЕТСЯ ЗДЕСЬ',welcomeCopy:'Участник программы Royal Flight Passenger Club',milesDescription:'Единый баланс миль альянса. Мили доступны во всех порталах авиакомпаний-участниц.',serviceDescription:'Услуги и привилегии Royal Flight для участников программы.',serviceIntro:'Путешествуйте с комфортом',roblox:true,watermark:'RF',flightTag:'RF FLIGHT'},
+    azal:{code:'azal',name:'AZAL',sub:'AZERBAIJAN AIRLINES',miles:'ALLIANCE MILES',initials:'AZ',logo:'https://upload.wikimedia.org/wikipedia/commons/4/4d/Azerbaijan_Airlines_logo.svg',title:'AZAL',theme:'azal',currency:'AZN',welcomeEyebrow:'AZERBAIJAN AIRLINES · PASSENGER PORTAL',welcomeCopy:'Личный кабинет пассажира Azerbaijan Airlines',milesDescription:'Единый баланс миль альянса. Мили доступны во всех порталах авиакомпаний-участниц.',serviceDescription:'Услуги и предложения Azerbaijan Airlines. Каталог AZAL не связан с Royal Flight.',serviceIntro:'Откройте возможности AZAL',roblox:false,watermark:'AZAL',flightTag:'AZAL FLIGHT'}
   };
   const airline=()=>airlines[currentAirline]||airlines.royal;
   function applyAirline(key){
@@ -140,7 +140,7 @@
     }
     if(identity)identity.textContent='Проверяем данные Telegram…';
     try{
-      const d=await functionRequest('telegram-auth',{initData:tg.initData,airlineCode:portal});
+      const d=await functionRequest('telegram-auth',{initData:tg.initData});
       if(generation!==authGeneration||portal!==currentAirline)return;
       if(!d.profile)throw new Error(d.error||'Сервер не вернул профиль пользователя.');
       const p=d.profile,name=p.display_name||('Пассажир '+airlines[portal].title);
