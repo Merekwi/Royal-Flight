@@ -4,6 +4,8 @@
   const pages=[...document.querySelectorAll('.page')], nav=[...document.querySelectorAll('.nav-item')], toast=document.getElementById('toast');
   let timer=null, dashboard=null, currentAirline='royal', authGeneration=0, robloxWarningShown=false;
   const URL='https://iotwbzzlwltjfddrmhvg.supabase.co';
+  const ROYAL_ALLIANCE_LOBBY_PLACE_ID='101826857818257';
+  const ROYAL_ALLIANCE_LOBBY_URL='https://www.roblox.com/games/101826857818257';
   const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvdHdienpsd2x0amZkZHJtaHZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5NTEwNDksImV4cCI6MjEwODUyNzA0OX0.Bg-ww-s0WVpVwuJymjREB3z6eeY0S_8ZfFE5tnqUYz0';
   function notify(s){toast.textContent=s;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2800);if(tg?.HapticFeedback)tg.HapticFeedback.impactOccurred('light')}
   function openPage(name){const gateway=document.getElementById('portalGateway');if(name==='portal-select'){if(gateway)gateway.hidden=false;document.body.classList.add('portal-selecting');document.title='Royal Alliance — выбор портала';pages.forEach(x=>x.classList.remove('active'));nav.forEach(x=>x.classList.remove('active'));window.scrollTo({top:0,behavior:'smooth'});if(tg?.HapticFeedback)tg.HapticFeedback.selectionChanged();return}const p=document.getElementById('page-'+name);if(!p)return;if(gateway)gateway.hidden=true;document.body.classList.remove('portal-selecting','portal-selection-active');pages.forEach(x=>x.classList.toggle('active',x===p));nav.forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(tg?.HapticFeedback)tg.HapticFeedback.selectionChanged()}
@@ -180,10 +182,11 @@
     showModal({
       title:'Мили не будут начисляться',
       subtitle:'Не подключён аккаунт Roblox',
-      content:'<div class="empty-card"><strong>Ваш профиль Telegram ещё не связан с Roblox.</strong><p>Пока вы не привяжете Roblox-аккаунт через игру Royal Flight, система не сможет распознать вас на сервере. Мили за проведённое в игре время начисляться не будут.</p></div><p class="modal-hint">Подключение: откройте профиль, получите одноразовый код и введите его в окне Royal Flight внутри Roblox. Пароль Roblox не нужен.</p>',
+      content:'<div class="empty-card"><strong>Ваш профиль Telegram ещё не связан с Roblox.</strong><p>Пока вы не привяжете Roblox-аккаунт через лобби Royal Alliance, система не сможет распознать вас на сервере. Мили за проведённое в игре время начисляться не будут.</p></div><p class="modal-hint">Подключение: откройте профиль, получите одноразовый код и введите его в панели ROYAL ALLIANCE в лобби Royal Alliance. Пароль Roblox не нужен.</p>',
       actions:[
         {label:'Напомнить позже',onClick:closeModal},
-        {label:'Перейти к подключению',primary:true,onClick:async()=>{closeModal();if(currentAirline!=='royal')await enterPortal('royal');openPage('profile');document.getElementById('robloxLinkButton')?.scrollIntoView({behavior:'smooth',block:'center'})}}
+        {label:'Перейти к подключению',primary:true,onClick:async()=>{closeModal();if(currentAirline!=='royal')await enterPortal('royal');openPage('profile');document.getElementById('robloxLinkButton')?.scrollIntoView({behavior:'smooth',block:'center'})}},
+        {label:'Открыть лобби Royal Alliance ↗',onClick:()=>{closeModal();openRobloxPortal()}}
       ]
     });
   }
@@ -241,13 +244,13 @@
         const robuxAllowed=(mode==='roblox_only'||mode==='both')&&s.roblox_enabled&&s.roblox_gamepass_id&&s.robux_price;
         const manualAllowed=mode==='manual_only'||mode==='both';
         const paymentLabel=mode==='roblox_only'?'ТОЛЬКО ROBUX':mode==='both'?'ОБА СПОСОБА':'ОБЫЧНАЯ ОПЛАТА';
-        const robloxInfo=robuxAllowed?'<p class="service-roblox-pass">Оплата через Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux. Нажмите кнопку, чтобы перейти в игру Royal Flight и завершить покупку там.</p>':'';
+        const robloxInfo=robuxAllowed?'<p class="service-roblox-pass">Оплата через Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux. Нажмите кнопку, чтобы открыть лобби Royal Alliance и завершить покупку там.</p>':'';
         const manualPrice=manualAllowed?money(s.price,s.currency):'';
         const milesCost=s.currency==='RUB'&&Number(s.price)>0?Math.ceil(Number(s.price)*10):null;
         const milesInfo=milesCost!==null?'<p class="data-description">Можно оплатить милями: '+milesCost.toLocaleString('ru-RU')+' миль · 10 миль = 1 ₽</p>':'';
         const showCheckout=manualAllowed||milesCost!==null;
-        const buttons=(showCheckout?'<button class="primary-button" data-buy="'+esc(s.id)+'">'+(manualAllowed?'Выбрать способ оплаты':'Оплатить милями')+'</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<button type="button" class="primary-button service-roblox-button" data-buy-roblox="1">Перейти в игру для оплаты ↗</button>':'');
-        const bothLink=mode==='both'&&robuxAllowed?'<button type="button" class="secondary-button service-roblox-button" data-buy-roblox="1">Перейти в игру для оплаты ↗</button>':'';
+        const buttons=(showCheckout?'<button class="primary-button" data-buy="'+esc(s.id)+'">'+(manualAllowed?'Выбрать способ оплаты':'Оплатить милями')+'</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<button type="button" class="primary-button service-roblox-button" data-buy-roblox="1">Открыть лобби Royal Alliance для оплаты ↗</button>':'');
+        const bothLink=mode==='both'&&robuxAllowed?'<button type="button" class="secondary-button service-roblox-button" data-buy-roblox="1">Открыть лобби Royal Alliance для оплаты ↗</button>':'';
         return '<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><div class="service-payment-mode">'+paymentLabel+'</div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||airline().serviceDescription)+'</p>'+robloxInfo+milesInfo+'<div class="service-buy-row">'+(manualAllowed?'<strong>'+manualPrice+'</strong>':(milesCost===null?'<strong>'+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</strong>':''))+buttons+bothLink+'</div></article>';
       }).join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог '+esc(airline().title)+' пока пуст</h3><p>Администрация добавит сюда услуги этой авиакомпании.</p></div>';
       sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)));
@@ -303,11 +306,12 @@
     }
   }
   function openRobloxPortal(){
-    // Launch the Royal Flight experience, not its Game Pass or experience-details page.
-    const placeUrl='https://www.roblox.com/games/start?placeId=101826857818257';
+    // Launch the Royal Alliance lobby, not the experience-details page.
+    const placeUrl='https://www.roblox.com/games/start?placeId='+ROYAL_ALLIANCE_LOBBY_PLACE_ID;
     if(tg?.openLink){tg.openLink(placeUrl);return}
     window.open(placeUrl,'_blank','noopener');
   }
+  document.addEventListener('click',event=>{const link=event.target.closest('[data-open-alliance-lobby]');if(!link)return;event.preventDefault();openRobloxPortal()});
   async function createOrder(serviceId){
     const service=(dashboard?.services||[]).find(s=>s.id===serviceId);
     const allMethods=dashboard?.paymentMethods||[];
@@ -384,10 +388,11 @@
           const mode=s.payment_mode||'manual_only';
           const modeLabel=mode==='roblox_only'?'ТОЛЬКО ROBUX':mode==='both'?'ОБЫЧНАЯ ОПЛАТА + ROBUX':'ТОЛЬКО ОБЫЧНАЯ ОПЛАТА';
           const priceLabel=mode==='roblox_only'?Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux':money(s.price,s.currency)+(mode==='both'?' + '+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux':'');
-          const pass=s.roblox_gamepass_id&&s.roblox_enabled?'<p class="data-description">Текущий Game Pass ID: '+esc(s.roblox_gamepass_id)+' · '+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</p><p>Оплата проходит внутри плейса Royal Alliance.</p>':(mode==='manual_only'?'<p class="data-description">Roblox-оплата отключена</p>':'<p class="data-description">Game Pass не настроен</p>');
+          const pass=s.roblox_gamepass_id&&s.roblox_enabled?'<p class="data-description">Текущий Game Pass ID: '+esc(s.roblox_gamepass_id)+' · '+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</p><p>Покупка Game Pass проходит в лобби Royal Alliance.</p><div class="button-row"><button type="button" class="secondary-button" data-open-alliance-lobby>Открыть лобби Royal Alliance ↗</button></div>':(mode==='manual_only'?'<p class="data-description">Roblox-оплата отключена</p>':'<p class="data-description">Game Pass не настроен</p>');
           return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(s.name)+' · '+esc(s.code)+'</strong><span class="order-status '+(s.active?'status-paid':'status-cancelled')+'">'+(s.active?'Активна':'Скрыта')+'</span></div><p class="service-payment-mode">'+modeLabel+'</p><p class="muted">'+priceLabel+' · '+Number(s.duration_days)+' дней</p>'+pass+'<div class="button-row"><button class="secondary-button" data-edit-service="'+esc(s.id)+'">Изменить услугу / оплату</button></div></article>';
         }).join('')+'</div>':'<div class="empty-card"><strong>Услуг пока нет</strong><p>Добавьте первую услугу в каталог '+esc(airline().title)+'.</p></div>');
       servicesBox.querySelector('#adminAddService')?.addEventListener('click',()=>editService(null));
+      servicesBox.querySelectorAll('[data-open-alliance-lobby]').forEach(b=>b.addEventListener('click',openRobloxPortal));
       servicesBox.querySelectorAll('[data-edit-service]').forEach(b=>b.addEventListener('click',()=>editService(services.find(s=>s.id===b.dataset.editService)||null)));
     }
 
@@ -544,7 +549,7 @@
     const button=document.getElementById('robloxLinkButton');if(button){button.disabled=true;button.textContent='Создаём код…'}
     try{
       const r=await call('create_roblox_link');
-      showModal({title:'Привязка Roblox',subtitle:'Откройте игру Royal Flight и введите этот одноразовый код в окне привязки.',content:'<div class="roblox-code-card"><span>ВАШ КОД</span><strong>'+esc(r.linkCode)+'</strong><small>Действует 10 минут</small><button class="copy-value" type="button" data-copy="'+esc(r.linkCode)+'">Копировать код</button></div><p class="modal-hint">Пароль от Roblox не требуется. Не передавайте этот код другим людям.</p>',actions:[{label:'Понятно',primary:true,onClick:closeModal}]});
+      showModal({title:'Привязка Roblox',subtitle:'Откройте лобби Royal Alliance и введите одноразовый код в панели ROYAL ALLIANCE.',content:'<div class="roblox-code-card"><span>ВАШ КОД</span><strong>'+esc(r.linkCode)+'</strong><small>Действует 10 минут</small><button class="copy-value" type="button" data-copy="'+esc(r.linkCode)+'">Копировать код</button></div><p class="modal-hint">Пароль от Roblox не требуется. Не передавайте этот код другим людям.</p>',actions:[{label:'Позже',onClick:closeModal},{label:'Открыть лобби Royal Alliance ↗',primary:true,onClick:()=>{closeModal();openRobloxPortal()}}]});
       wireCopyButtons();
     }catch(e){notify(e.message)}
     finally{if(button){button.disabled=false;button.textContent='Привязать Roblox'}}
