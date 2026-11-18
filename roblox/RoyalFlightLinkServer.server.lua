@@ -7,6 +7,7 @@ local HttpService = game:GetService("HttpService")
 
 local API_URL = "https://iotwbzzlwltjfddrmhvg.supabase.co/functions/v1/roblox-api"
 local SERVER_SECRET = "PASTE_THE_SAME_RANDOM_SECRET_HERE"
+local JOB_ID = (game.JobId ~= "" and game.JobId) or ("studio-" .. tostring(game.PlaceId) .. "-" .. tostring(game.PlaceVersion))
 
 local remote = ReplicatedStorage:FindFirstChild("RFLinkRequest")
 if not remote then
@@ -54,7 +55,7 @@ remote.OnServerInvoke = function(player, code)
         robloxUserId = player.UserId,
         robloxUsername = player.Name,
         placeId = game.PlaceId,
-        jobId = game.JobId
+        jobId = JOB_ID
     })
     if not ok then return { ok = false, message = result } end
     return { ok = true, message = "Roblox успешно привязан к Royal Flight!" }
@@ -76,7 +77,7 @@ local function apiRequestBatch(players)
                 action = "heartbeat_batch",
                 players = ids,
                 placeId = game.PlaceId,
-                jobId = game.JobId
+                jobId = JOB_ID
             })
         })
     end)
@@ -101,13 +102,13 @@ Players.PlayerRemoving:Connect(function(player)
         action = "heartbeat",
         robloxUserId = player.UserId,
         placeId = game.PlaceId,
-        jobId = game.JobId
+        jobId = JOB_ID
     })
     apiRequest({
         action = "leave",
         robloxUserId = player.UserId,
         placeId = game.PlaceId,
-        jobId = game.JobId
+        jobId = JOB_ID
     })
 end)
 
