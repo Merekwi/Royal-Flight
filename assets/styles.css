@@ -495,3 +495,13 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 .flight-registration-state{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid rgba(130,210,174,.22);border-radius:10px;background:rgba(130,210,174,.08);color:#9fe0bf;font-size:9px;font-weight:800}
 .flight-registration-closed{color:var(--muted);font-size:9px}
 @media(max-width:390px){.flight-registration-row .primary-button{width:100%;min-width:0}}
+
+
+/* Roblox Game Pass renewal management */
+.service-roblox-pass{margin:11px 0 0;padding:10px 11px;border:1px solid rgba(113,190,225,.16);border-radius:11px;background:rgba(78,158,195,.055);color:#a9cddd;font-size:9px;line-height:1.6}
+.service-roblox-pass a{color:var(--accent-light);text-decoration:none;font-weight:800}
+.service-roblox-pass a:hover{text-decoration:underline}
+#adminServices .section-heading{align-items:center;gap:10px}
+#adminServices .section-heading>.secondary-button{flex:0 0 auto;min-height:36px;padding:8px 11px;font-size:9px}
+#adminServices .data-card{min-width:0}
+#adminServices .data-description{overflow-wrap:anywhere}
