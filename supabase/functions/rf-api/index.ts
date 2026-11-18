@@ -4,6 +4,7 @@ const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Max-Age": "86400",
   "Content-Type": "application/json",
 };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: cors });
@@ -17,7 +18,7 @@ async function verifyInitData(initData: string, botToken: string) {
   const hash = params.get("hash");
   if (!hash) return null;
   params.delete("hash");
-  const checkString = Array.from(params.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([k,v]) => `${k}=${v}`).join("\n");
+  const checkString = Array.from(params.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([k,v]) => `${k}=${v}`).join("\n");
   const secret = await hmac(new TextEncoder().encode("WebAppData"), botToken);
   const expected = hex(await hmac(new Uint8Array(secret), checkString));
   if (expected.length !== hash.length) return null;
@@ -54,7 +55,10 @@ Deno.serve(async (req) => {
     const { data: profile, error: profileError } = await db.from("rf_profiles").upsert({
       telegram_id: telegram.id, telegram_username: telegram.username, display_name: telegram.name || null, updated_at: new Date().toISOString()
     }, { onConflict: "telegram_id" }).select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").single();
-    if (profileError || !profile) return json({ error: "profile_unavailable" }, 500);
+    if (profileError || !profile) {
+      console.error("profile_upsert_failed", profileError?.message || "profile row missing");
+      return json({ error: "profile_unavailable", message: "База данных не смогла сохранить профиль Telegram." }, 503);
+    }
 
     const admin = profile.role === "admin" || profile.role === "owner";
     const action = body.action;
@@ -81,7 +85,18 @@ Deno.serve(async (req) => {
         db.from("rf_payment_methods").select("id,label,card_number,recipient_name,instructions").eq("active", true).order("created_at")
       ]);
       const err = [flights,services,orders,subscriptions,ledger,announcements,paymentMethods].find(x=>x.error);
-      if (err) return json({ error: "dashboard_load_failed" }, 500);
+      if (err) {
+        const detail = err.error?.message || "unknown database query error";
+        const code = err.error?.code || null;
+        console.error("dashboard_query_failed", { code, message: detail });
+        const unavailable = /connection|timeout|unavailable|terminat/i.test(detail) || (typeof code === "string" && code.startsWith("08"));
+        return json({
+          error: "dashboard_load_failed",
+          message: unavailable
+            ? "База данных временно недоступна. Повторите загрузку через несколько секунд."
+            : "Не удалось прочитать данные кабинета. Проверьте схему и права доступа к таблицам."
+        }, unavailable ? 503 : 500);
+      }
       let pendingOrders: unknown[] = [];
       let adminUsers: unknown[] = [];
       if (admin) {
