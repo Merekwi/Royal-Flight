@@ -216,7 +216,7 @@ function wireLogic(prefix,fields){
  if(!source||!operator||!wrap)return;
  source.addEventListener('change',()=>{
   const field=fields.find(x=>x.id===source.value)||null;
-  const previous=$ (prefix+'Value');
+  const previous=$(prefix+'Value');
   const previousValue=previous?.value||'';
   operator.innerHTML=conditionOperatorHtml(field,'equals');
   wrap.innerHTML=conditionValueHtml(field,previousValue,prefix);
