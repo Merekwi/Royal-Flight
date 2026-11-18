@@ -1,4 +1,4 @@
-name: Royal Flight scheduled notifications
+name: Royal Alliance scheduled notifications
 
 on:
   schedule:
