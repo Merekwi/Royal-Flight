@@ -287,17 +287,52 @@
     }}]});
   }
   function renderAdmin(a){
-    const box=document.getElementById('adminPayments');if(!box)return;const orders=a.pendingOrders||[];
-    box.innerHTML='<h2 class="subheading orders-heading">Заявки на оплату <span class="count-badge">'+orders.length+'</span></h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>'<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-awaiting_review">На проверке</span></div><p class="muted">'+money(o.amount,o.currency)+' · '+date(o.created_at)+'</p>'+(o.user_note?'<p class="data-description">'+esc(o.user_note)+'</p>':'')+(o.proof_url?'<p><a class="proof-link" target="_blank" rel="noopener" href="'+esc(o.proof_url)+'">Открыть подтверждение</a></p>':'')+'<div class="button-row"><button class="primary-button" data-paid="'+esc(o.id)+'">Оплачено</button><button class="secondary-button" data-reject="'+esc(o.id)+'">Не оплачено</button></div></article>').join('')+'</div>':'<div class="empty-card"><span class="empty-icon">✓</span><div><strong>Нет ожидающих заявок</strong><p>Заявки появятся после нажатия пользователем «Я оплатил».</p></div></div>');
+    const box=document.getElementById('adminPayments');
+    if(!box)return;
+    const orders=a.pendingOrders||[];
+    const orderCards=orders.map(o=>{
+      const proof=o.proof_url?'<p><a class="proof-link" target="_blank" rel="noopener" href="'+esc(o.proof_url)+'">Открыть подтверждение</a></p>':'';
+      const note=o.user_note?'<p class="data-description">'+esc(o.user_note)+'</p>':'';
+      return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-awaiting_review">На проверке</span></div><p class="muted">'+money(o.amount,o.currency)+' · '+date(o.created_at)+'</p>'+note+proof+'<div class="button-row"><button class="primary-button" data-paid="'+esc(o.id)+'">Оплачено</button><button class="secondary-button" data-reject="'+esc(o.id)+'">Не оплачено</button></div></article>';
+    }).join('');
+    box.innerHTML='<h2 class="subheading orders-heading">Заявки на оплату <span class="count-badge">'+orders.length+'</span></h2>'+
+      (orders.length?'<div class="data-list">'+orderCards+'</div>':'<div class="empty-card"><span class="empty-icon">✓</span><div><strong>Нет ожидающих заявок</strong><p>Заявки появятся после нажатия пользователем «Я оплатил».</p></div></div>');
     box.querySelectorAll('[data-paid]').forEach(b=>b.addEventListener('click',()=>review(b.dataset.paid,true)));
     box.querySelectorAll('[data-reject]').forEach(b=>b.addEventListener('click',()=>review(b.dataset.reject,false)));
+
     const usersBox=document.getElementById('adminUsers');
-    if(usersBox){
-      const users=a.users||[];const isOwner=dashboard?.profile?.role==='owner';
-      usersBox.innerHTML='<h2 class="subheading orders-heading">Участники <span class="count-badge">'+users.length+'</span></h2>'+(users.length?'<div class="data-list">'+users.map(u=>'<article class="data-card user-card"><div class="data-card-top"><strong>'+esc(u.display_name||u.telegram_username||('ID '+u.telegram_id))+'</strong><span class="order-status">'+esc(u.role)+'</span></div><p class="muted">'+(u.telegram_username?'@'+esc(u.telegram_username)+' · ':'')+'Telegram ID: '+esc(u.telegram_id)+'</p><p class="data-description">'+(u.roblox_username?'Roblox: '+esc(u.roblox_username)+' · ':'')+'Общий баланс альянса: '+Number(u.miles||0).toLocaleString('ru-RU')+' миль</p><div class="button-row">'+(isOwner&&u.role!=='owner'?'<button class="secondary-button" data-role-user="'+esc(u.id)+'" data-role="'+(u.role==='admin'?'member':'admin')+'">'+(u.role==='admin'?'Снять админа в '+esc(airline().title):'Назначить админом '+esc(airline().title))+'</button>':'')+(isOwner?'<button class="secondary-button" data-miles-user="'+esc(u.id)+'">Изменить общий баланс</button>':'')</div></article>').join('')+'</div>':'<div class="empty-card"><strong>Участников пока нет</strong><p>Профили появятся после первого запуска Mini App.</p></div>');
-      usersBox.querySelectorAll('[data-role-user]').forEach(b=>b.addEventListener('click',async()=>{try{await call('admin_manage_user',{profileId:b.dataset.roleUser,role:b.dataset.role});notify('Роль участника обновлена.');await loadDashboard()}catch(e){notify(e.message)}}));
-      usersBox.querySelectorAll('[data-miles-user]').forEach(b=>b.addEventListener('click',()=>showAdminForm({title:'Изменить баланс',subtitle:'Это общий счёт участника: изменение будет видно во всех порталах альянса. Для списания используйте отрицательное число.',fields:[{name:'milesDelta',label:'Изменение баланса',type:'number',value:'100',required:true}],submitLabel:'Сохранить',onSubmit:async values=>{const delta=Number(values.milesDelta);if(!Number.isInteger(delta)){notify('Введите целое число');return false}await call('admin_manage_user',{profileId:b.dataset.milesUser,milesDelta:delta});notify('Баланс обновлён.');await loadDashboard();return true}})));
-    }
+    if(!usersBox)return;
+    const users=a.users||[];
+    const isOwner=dashboard?.profile?.role==='owner';
+    const userCards=users.map(u=>{
+      const displayName=u.display_name||u.telegram_username||('ID '+u.telegram_id);
+      const robloxText=u.roblox_username?'Roblox: '+esc(u.roblox_username)+' · ':'';
+      const roleAction=(isOwner&&u.role!=='owner')
+        ?'<button class="secondary-button" data-role-user="'+esc(u.id)+'" data-role="'+(u.role==='admin'?'member':'admin')+'">'+(u.role==='admin'?'Снять админа в '+esc(airline().title):'Назначить админом '+esc(airline().title))+'</button>'
+        :'';
+      const milesAction=isOwner
+        ?'<button class="secondary-button" data-miles-user="'+esc(u.id)+'">Изменить общий баланс</button>'
+        :'';
+      return '<article class="data-card user-card"><div class="data-card-top"><strong>'+esc(displayName)+'</strong><span class="order-status">'+esc(u.role)+'</span></div><p class="muted">'+(u.telegram_username?'@'+esc(u.telegram_username)+' · ':'')+'Telegram ID: '+esc(u.telegram_id)+'</p><p class="data-description">'+robloxText+'Общий баланс альянса: '+Number(u.miles||0).toLocaleString('ru-RU')+' миль</p><div class="button-row">'+roleAction+milesAction+'</div></article>';
+    }).join('');
+    usersBox.innerHTML='<h2 class="subheading orders-heading">Участники <span class="count-badge">'+users.length+'</span></h2>'+
+      (users.length?'<div class="data-list">'+userCards+'</div>':'<div class="empty-card"><strong>Участников пока нет</strong><p>Профили появятся после первого запуска Mini App.</p></div>');
+    usersBox.querySelectorAll('[data-role-user]').forEach(b=>b.addEventListener('click',async()=>{
+      try{await call('admin_manage_user',{profileId:b.dataset.roleUser,role:b.dataset.role});notify('Роль участника обновлена в '+airline().title+'.');await loadDashboard()}
+      catch(e){notify(e.message)}
+    }));
+    usersBox.querySelectorAll('[data-miles-user]').forEach(b=>b.addEventListener('click',()=>showAdminForm({
+      title:'Изменить общий баланс',
+      subtitle:'Изменение будет видно во всех порталах Royal Alliance. Для списания используйте отрицательное число.',
+      fields:[{name:'milesDelta',label:'Изменение баланса',type:'number',value:'100',required:true}],
+      submitLabel:'Сохранить',
+      onSubmit:async values=>{
+        const delta=Number(values.milesDelta);
+        if(!Number.isSafeInteger(delta)||delta===0){notify('Введите целое ненулевое число');return false}
+        await call('admin_manage_user',{profileId:b.dataset.milesUser,milesDelta:delta});
+        notify('Общий баланс альянса обновлён.');await loadDashboard();return true;
+      }
+    })));
   }
   async function review(id,paid){
     showAdminForm({title:paid?'Подтвердить оплату':'Отклонить оплату',subtitle:paid?'После подтверждения услуга будет активирована.':'Укажите причину отказа, она будет отправлена участнику.',fields:[{name:'note',label:paid?'Комментарий':'Причина отказа',type:'textarea',rows:3,required:!paid,placeholder:paid?'Комментарий для участника':'Почему оплата не подтверждена?'}],submitLabel:paid?'Подтвердить':'Отклонить заявку',onSubmit:async values=>{
