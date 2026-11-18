@@ -3,13 +3,16 @@
 Telegram Mini App and operations platform for the Royal Flight virtual airline.
 
 ## Included
-- Responsive Russian-language Telegram Mini App: home, flights, miles, services, profile and admin panel.
+- Responsive Russian-language Telegram Mini App with separate Royal Flight and AZAL portals.
+- One Royal Alliance member profile and shared miles wallet across every airline portal; carrier schedules, catalogues, orders, payments and announcements remain separated.
+- Airline-scoped admin assignments; alliance-wide owner controls and audited common-mile adjustments.
+- Passenger flight registration with server-side departure, registration deadline, carrier and seat-capacity checks.
 - Supabase Edge Functions for Telegram WebApp signature validation and trusted API actions.
 - Admin flight creation, service catalogue, payment method management, manual order review, timed subscriptions and renewal by repeat purchase.
 - Unique order numbers for payment comments; users submit “Я оплатил”, and admins approve/reject with a note.
 - Telegram notification delivery plus scheduled messages via GitHub Actions.
 - Roblox account linking through one-time codes, server-validated Roblox identity and miles earned for online minutes in approved game Places.
-- Participant management, admin roles and audited mileage adjustments.
+- Participant management, carrier-specific admin roles and owner-only audited alliance-mile adjustments.
 - Supabase RLS enabled with direct access revoked from browser roles; privileged operations run through server functions.
 
 ## Deployment
