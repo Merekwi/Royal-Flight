@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./assets/styles.css?v=20261118-airline-portals">
+<link rel="stylesheet" href="./assets/styles.css?v=20261118-shared-alliance-miles">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -52,7 +52,7 @@
       <article class="miles-card">
         <div class="miles-card-noise"></div>
         <div class="miles-card-top">
-          <span class="pill pill-light"><span class="status-dot"></span> ROYAL MILES</span>
+          <span class="pill pill-light"><span class="status-dot"></span> ALLIANCE MILES</span>
           <span class="card-emblem">✦</span>
         </div>
         <div class="miles-card-main">
@@ -101,7 +101,7 @@
       <div class="page-heading page-heading-hero">
         <p class="eyebrow">LOYALTY PROGRAMME</p>
         <h1>Ваши мили</h1>
-        <p class="muted" id="milesDescription">Отдельный баланс Royal Miles и история операций Royal Flight.</p>
+        <p class="muted" id="milesDescription">Единый баланс миль альянса. Мили доступны во всех порталах авиакомпаний-участниц.</p>
         <div class="heading-decoration">✦</div>
       </div>
       <div class="sub-balance">
@@ -109,8 +109,11 @@
         <strong><span id="milesBalanceDetail">—</span> <small>миль</small></strong>
         <div class="balance-card-bottom"><span>LOYALTY ACCOUNT</span><span>✦ MEMBER</span></div>
       </div>
+      <div class="miles-how" id="milesAllianceInfo">
+        <div class="miles-how-icon">✦</div><div><strong>Единая программа лояльности альянса</strong><p>Один счёт для всех авиакомпаний-участниц. Накопленные мили и история операций доступны в каждом портале альянса.</p></div>
+      </div>
       <div class="miles-how" id="milesHow">
-        <div class="miles-how-icon">◷</div><div><strong>Накапливайте мили в Roblox</strong><p>Мили начисляются за подтверждённое время на разрешённых серверах Roblox. Баланс обновляется автоматически после обработки времени.</p></div>
+        <div class="miles-how-icon">◷</div><div><strong>Начисление миль в Royal Flight</strong><p>Время на разрешённых серверах Roblox приносит мили на общий счёт альянса. Этот баланс также отображается в портале AZAL.</p></div>
       </div>
       <div class="section-heading section-heading-spaced"><div><p class="eyebrow">ИСТОРИЯ</p><h2>Операции по счёту</h2></div></div>
       <div id="mileLedger">
@@ -200,6 +203,6 @@
   <div id="appModal" class="app-modal-root" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
-<script src="./assets/app.js?v=20261118-airline-portals"></script>
+<script src="./assets/app.js?v=20261118-shared-alliance-miles"></script>
 </body>
 </html>
