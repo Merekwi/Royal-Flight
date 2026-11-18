@@ -309,7 +309,7 @@
     // Launch the Royal Alliance lobby, not the experience-details page.
     const placeUrl='https://www.roblox.com/games/start?placeId='+ROYAL_ALLIANCE_LOBBY_PLACE_ID;
     if(tg?.openLink){tg.openLink(placeUrl);return}
-    window.open(placeUrl,'_blank','noopener');
+    window.open(ROYAL_ALLIANCE_LOBBY_URL,'_blank','noopener');
   }
   document.addEventListener('click',event=>{const link=event.target.closest('[data-open-alliance-lobby]');if(!link)return;event.preventDefault();openRobloxPortal()});
   async function createOrder(serviceId){
@@ -392,7 +392,7 @@
           return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(s.name)+' · '+esc(s.code)+'</strong><span class="order-status '+(s.active?'status-paid':'status-cancelled')+'">'+(s.active?'Активна':'Скрыта')+'</span></div><p class="service-payment-mode">'+modeLabel+'</p><p class="muted">'+priceLabel+' · '+Number(s.duration_days)+' дней</p>'+pass+'<div class="button-row"><button class="secondary-button" data-edit-service="'+esc(s.id)+'">Изменить услугу / оплату</button></div></article>';
         }).join('')+'</div>':'<div class="empty-card"><strong>Услуг пока нет</strong><p>Добавьте первую услугу в каталог '+esc(airline().title)+'.</p></div>');
       servicesBox.querySelector('#adminAddService')?.addEventListener('click',()=>editService(null));
-      servicesBox.querySelectorAll('[data-open-alliance-lobby]').forEach(b=>b.addEventListener('click',openRobloxPortal));
+
       servicesBox.querySelectorAll('[data-edit-service]').forEach(b=>b.addEventListener('click',()=>editService(services.find(s=>s.id===b.dataset.editService)||null)));
     }
 
