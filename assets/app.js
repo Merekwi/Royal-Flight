@@ -489,6 +489,22 @@
     finally{if(button){button.disabled=false;button.textContent='Привязать Roblox'}}
   });
   document.querySelectorAll('[data-admin]').forEach(b=>b.addEventListener('click',()=>adminAction(b.dataset.admin)));
-  window.RoyalFlightApp={openPage,notify};
-  signIn();
+  async function enterPortal(key){
+    if(!airlines[key])return;
+    currentAirline=key;
+    authGeneration++;
+    dashboard=null;
+    applyAirline(key);
+    resetPortalData();
+    const gateway=document.getElementById('portalGateway');
+    if(gateway)gateway.hidden=true;
+    document.body.classList.remove('portal-selecting');
+    openPage('home');
+    await signIn();
+  }
+  document.querySelectorAll('[data-enter-airline]').forEach(button=>{
+    button.addEventListener('click',()=>enterPortal(button.dataset.enterAirline));
+  });
+  window.RoyalFlightApp={openPage,notify,enterPortal};
+  document.body.classList.add('portal-selecting');
 })();
