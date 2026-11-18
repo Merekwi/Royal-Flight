@@ -118,6 +118,7 @@
     if(button){button.disabled=false;button.textContent='Повторить'}
   });
   function resetPortalData(){
+    const adminNav=document.getElementById('adminNav');if(adminNav)adminNav.hidden=true;
     for(const id of ['milesBalance','milesBalanceDetail']){const el=document.getElementById(id);if(el)el.textContent='—'}
     for(const id of ['flightCatalog','serviceCatalog','activeSubscriptions','ordersHistory','homeFlightPreview','announcementList','mileLedger','adminPayments','adminUsers']){
       const el=document.getElementById(id);if(el)el.innerHTML='<div class="empty-state compact"><h3>Загружаем портал</h3><p>Получаем данные выбранной авиакомпании…</p></div>';
@@ -392,7 +393,7 @@
       showAdminForm({title:'Новое объявление',subtitle:'Создайте уведомление для участников приложения.',fields:[
         {name:'title',label:'Заголовок',required:true,placeholder:'Важная информация'},
         {name:'body',label:'Текст объявления',type:'textarea',rows:4,required:true,placeholder:'Сообщение для пассажиров'},
-        {name:'audience',label:'Кому отправить',type:'select',options:[{value:'all',label:'Всем участникам'},{value:'admins',label:'Администраторам'},...(airline().roblox?[{value:'roblox_linked',label:'Привязавшим Roblox'}]:[]),{value:'active_service',label:'С активной услугой'}]},
+        {name:'audience',label:'Кому отправить',type:'select',options:[{value:'all',label:'Участникам '+airline().title},{value:'admins',label:'Администраторам '+airline().title},...(airline().roblox?[{value:'roblox_linked',label:'Привязавшим Roblox'}]:[]),{value:'active_service',label:'С активной услугой'}]},
         {name:'scheduledAt',label:'Отложенная отправка',type:'datetime-local'}
       ],submitLabel:'Опубликовать',onSubmit:async v=>{
         if(!v.title||!v.body){notify('Заполните заголовок и текст');return false}
