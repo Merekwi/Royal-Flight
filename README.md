@@ -1,6 +1,6 @@
-# Royal Flight Platform
+# Royal Alliance Platform
 
-Telegram Mini App and operations platform for the Royal Flight virtual airline.
+Telegram Mini App and shared operations platform for the Royal Flight and AZAL airline portals.
 
 ## Included
 - Responsive Russian-language Telegram Mini App with separate Royal Flight and AZAL portals.
@@ -12,7 +12,7 @@ Telegram Mini App and operations platform for the Royal Flight virtual airline.
 - Airline-scoped Career Centre with a no-code conditional form builder, candidate inbox, status workflow and Telegram status notifications.
 - Unique order numbers for payment comments; users submit “Я оплатил”, and admins approve/reject with a note.
 - Telegram notification delivery plus scheduled messages via GitHub Actions.
-- Roblox account linking through one-time codes, server-validated Roblox identity and miles earned for online minutes in approved game Places.
+- Roblox account linking through one-time codes entered in the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257), server-validated Roblox identity and miles earned for online minutes in connected Places.
 - Participant management, carrier-specific admin roles and owner-only audited alliance-mile adjustments.
 - Supabase RLS enabled with direct access revoked from browser roles; privileged operations run through server functions.
 
