@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./assets/styles.css?v=20261118-shared-alliance-miles">
+<link rel="stylesheet" href="./assets/styles.css?v=20261118-complete-audit">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -59,7 +59,7 @@
           <div><p class="balance-label">Общий баланс альянса</p><div class="balance-line"><strong id="milesBalance">—</strong><span>миль</span></div></div>
           <div class="card-watermark" aria-hidden="true">RF</div>
         </div>
-        <div class="miles-card-bottom"><span id="robloxStatus">Roblox не привязан</span><span class="mini-plane">✈</span></div>
+        <div class="miles-card-bottom"><span id="robloxStatus">Участник Royal Alliance</span><span class="mini-plane">✈</span></div>
       </article>
 
       <div class="home-shortcuts">
@@ -91,7 +91,7 @@
         <p class="muted">Все ближайшие вылеты и информация о путешествиях в одном месте.</p>
         <div class="heading-decoration">✈</div>
       </div>
-      <div class="page-summary-strip"><span class="summary-icon">✈</span><div><strong>Ближайшие путешествия</strong><small>Актуальные рейсы авиакомпании</small></div><span class="summary-status">LIVE</span></div>
+      <div class="page-summary-strip"><span class="summary-icon">✈</span><div><strong>Ближайшие путешествия</strong><small>Актуальные рейсы авиакомпании</small></div><span class="summary-status">АКТУАЛЬНО</span></div>
       <div id="flightCatalog">
         <div class="empty-state"><div class="empty-orbit">✈</div><h3>Расписание готовится</h3><p>Как только администрация опубликует рейсы, они появятся на этой странице.</p></div>
       </div>
@@ -132,6 +132,7 @@
         <div class="services-intro-symbol">✦</div>
         <div><strong id="serviceIntroTitle">Путешествуйте с комфортом</strong><p>Выберите услугу из отдельного каталога выбранной авиакомпании.</p></div>
       </div>
+      <div id="activeSubscriptions"></div>
       <div class="section-heading"><div><p class="eyebrow">MEMBER BENEFITS</p><h2>Доступные услуги</h2></div></div>
       <div id="serviceCatalog">
         <div class="empty-state"><div class="empty-orbit">◇</div><h3>Каталог скоро откроется</h3><p>Доступные услуги и привилегии появятся здесь после публикации администрацией.</p></div>
@@ -152,9 +153,9 @@
       <div class="profile-card">
         <div class="profile-card-top"><div class="profile-avatar" id="profileAvatar">RF</div><div class="profile-member-label"><span>AIRLINE ALLIANCE</span><b>УЧАСТНИК</b></div></div>
         <div class="profile-card-name"><strong id="profileName">Гость Royal Flight</strong><p class="muted" id="telegramIdentity">Ожидание данных Telegram…</p></div>
-        <div class="profile-card-foot"><span>LOYALTY MEMBER</span><span id="profileProgramLabel">ROYAL FLIGHT</span></div>
+        <div class="profile-card-foot"><span>ROYAL ALLIANCE MEMBER</span><span id="profileProgramLabel">ROYAL ALLIANCE</span></div>
       </div>
-      <div class="section-heading"><div><p class="eyebrow">CONNECTED ACCOUNTS</p><h2>Подключения</h2></div></div>
+      <div class="section-heading" id="connectedAccountsHeading"><div><p class="eyebrow">CONNECTED ACCOUNTS</p><h2>Подключения</h2></div></div>
       <div id="robloxConnectionGroup">
       <div class="connection-card">
         <div class="connection-icon roblox-icon">R</div>
@@ -203,6 +204,6 @@
   <div id="appModal" class="app-modal-root" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
-<script src="./assets/app.js?v=20261118-shared-alliance-miles"></script>
+<script src="./assets/app.js?v=20261118-complete-audit"></script>
 </body>
 </html>
