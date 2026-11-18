@@ -4,8 +4,9 @@
 - A one-time code generated in the Telegram Mini App and entered in the Royal Flight Roblox game.
 - Roblox identity is taken from the server-side `Player.UserId` and `Player.Name`, not from a user-submitted username.
 - The server sends a heartbeat every 60 seconds while the player remains in the approved game Place.
-- The backend credits complete minutes only. Current default: 10 miles per credited minute; an admin can change the rate in the Mini App.
-- The Mini App shows the current balance and mileage ledger.
+- The backend credits complete minutes only. Current default: 10 Royal Flight Roblox miles per credited minute; the alliance owner can change the rate in the Royal Flight portal.
+- Roblox mileage is credited to the one shared Royal Alliance wallet and is visible in every member airline portal.
+- Roblox is currently a Royal Flight integration, not an AZAL feature.
 
 ## Required one-time configuration
 1. In Roblox Studio, enable **Game Settings → Security → Allow HTTP Requests**.
@@ -28,4 +29,4 @@
 - Do not use the secret in a LocalScript, a RemoteEvent payload, or any client-visible asset.
 - Only the listed Place IDs count. Add every legitimate Royal Flight place where players should earn miles.
 - Roblox HTTP calls can fail temporarily; those gaps are not retroactively credited.
-- Before public launch, configure the owner's numeric Telegram ID in `rf_settings.owner_telegram_id` / `rf_profiles.role`, and set the Edge Function secret above.
+- Before public launch, configure the owner's numeric Telegram ID in `rf_settings.owner_telegram_id`, set the Edge Function secret above, and add at least one real Royal Flight Place ID to the approved-place list. The database currently has an empty Place ID allow-list, so linking and mileage heartbeats are rejected until that step is completed.
