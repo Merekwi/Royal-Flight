@@ -533,7 +533,7 @@
           {name:'cardNumber',label:'Номер карты или счёта',required:true,placeholder:'Номер для оплаты'},
           {name:'recipientName',label:'Получатель',placeholder:'Имя получателя'},
           {name:'instructions',label:'Инструкция',type:'textarea',rows:3,placeholder:'Что указать в комментарии к платежу'}
-        ],submitLabel:'Добавить реквизиты',onSubmit:async v=>{if(!v.label||!v.cardNumber){notify('Укажите название и номер карты');return false}await call('admin_add_payment_method',{paymentMethod:{label:v.label,cardNumber:v.cardNumber,recipientName:v.recipientName,instructions:v.instructions,active:true}});notify('Реквизиты добавлены');return true}});
+        ],submitLabel:'Добавить реквизиты',onSubmit:async v=>{if(!v.label||!v.cardNumber){notify('Укажите название и номер карты');return false}await call('admin_add_payment_method',{paymentMethod:{label:v.label,cardNumber:v.cardNumber,recipientName:v.recipientName,instructions:v.instructions,active:true}});await loadDashboard();notify('Реквизиты добавлены');return true}});
       });
       modalRoot.querySelector('[data-setting="places"]')?.addEventListener('click',()=>{
         closeModal();showAdminForm({title:'Серверы Roblox',subtitle:'Укажите Place ID через запятую.',fields:[{name:'ids',label:'Разрешённые Place ID',type:'textarea',rows:3,required:true,placeholder:'123456789, 987654321'}],submitLabel:'Сохранить',onSubmit:async v=>{const ids=v.ids.split(',').map(x=>x.trim()).filter(Boolean);if(!ids.length){notify('Укажите хотя бы один ID');return false}await call('admin_set_roblox_places',{placeIds:ids});notify('Список серверов обновлён');return true}});
