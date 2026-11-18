@@ -505,3 +505,15 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 #adminServices .section-heading>.secondary-button{flex:0 0 auto;min-height:36px;padding:8px 11px;font-size:9px}
 #adminServices .data-card{min-width:0}
 #adminServices .data-description{overflow-wrap:anywhere}
+
+
+/* Per-service payment mode */
+.service-payment-mode{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;margin-top:9px;padding:5px 8px;border:1px solid rgba(201,169,110,.18);border-radius:20px;background:rgba(201,169,110,.065);color:var(--accent-light);font-size:7px;font-weight:900;letter-spacing:1px}
+.service-roblox-pass{margin:11px 0 0;padding:10px 11px;border:1px solid rgba(113,190,225,.16);border-radius:11px;background:rgba(78,158,195,.055);color:#a9cddd;font-size:9px;line-height:1.6}
+.service-roblox-pass a{color:var(--accent-light);text-decoration:none;font-weight:800}
+.service-roblox-pass a:hover{text-decoration:underline}
+.service-buy-row{flex-wrap:wrap}
+.service-buy-row>.primary-button,.service-buy-row>.secondary-button,.service-buy-row>.service-roblox-button{flex:0 1 auto;min-width:max-content;text-decoration:none}
+.service-roblox-button{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 14px;border:1px solid rgba(113,190,225,.2);border-radius:11px;background:rgba(78,158,195,.08);color:#b9e6f4;font:800 10px Manrope,sans-serif;text-decoration:none}
+.service-roblox-button:hover{border-color:rgba(113,190,225,.45);background:rgba(78,158,195,.15)}
+#adminServices .data-card .button-row{flex-wrap:wrap}
