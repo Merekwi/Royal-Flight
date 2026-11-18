@@ -51,14 +51,21 @@ function careerRecord(value: unknown): value is Record<string, any> {
 function normalizeCareerSchema(raw: any): any | null {
   if (!careerRecord(raw) || !Array.isArray(raw.sections) || raw.sections.length < 1 || raw.sections.length > 20) return null;
   const seen = new Set<string>();
+  const knownFields = new Map<string, any>();
   const sections: any[] = [];
   let totalFields = 0;
   const normalizeCondition = (value: any): any | null | false => {
     if (!value || value.fieldId === "" || value.fieldId === null || value.fieldId === undefined) return null;
     if (!careerRecord(value) || typeof value.fieldId !== "string" || !seen.has(value.fieldId)) return false;
+    const sourceField = knownFields.get(value.fieldId);
     const operator = value.operator === "not_equals" ? "not_equals" : value.operator === "equals" || !value.operator ? "equals" : "";
-    if (!operator || typeof value.value !== "string" || value.value.length > 200) return false;
-    return { fieldId: value.fieldId, operator, value: value.value };
+    if (!sourceField || !operator || typeof value.value !== "string" || !value.value.trim() || value.value.length > 200) return false;
+    const conditionValue = value.value.trim();
+    if (sourceField.type === "yesno" && !["yes","no"].includes(conditionValue)) return false;
+    if ((sourceField.type === "select" || sourceField.type === "multiselect") && !sourceField.options.includes(conditionValue)) return false;
+    if (sourceField.type === "number" && !Number.isFinite(Number(conditionValue))) return false;
+    if (sourceField.type === "date" && (!/^\\d{4}-\\d{2}-\\d{2}$/.test(conditionValue) || Number.isNaN(Date.parse(conditionValue)))) return false;
+    return { fieldId: value.fieldId, operator, value: conditionValue };
   };
   for (const source of raw.sections) {
     if (!careerRecord(source) || typeof source.id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(source.id) ||
@@ -88,6 +95,7 @@ function normalizeCareerSchema(raw: any): any | null {
         options, visibleWhen: condition
       });
       seen.add(field.id);
+      knownFields.set(field.id, fields[fields.length - 1]);
     }
     sections.push({
       id: source.id, title: source.title.trim(),
