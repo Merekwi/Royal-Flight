@@ -25,6 +25,41 @@
 4. The server submits the code with the actual Roblox UserId and username. The code can only be used once, and a Roblox account cannot be linked to two Telegram profiles.
 5. After linking, each 60-second heartbeat confirms presence. The server caps a delayed heartbeat to 90 seconds to prevent large offline credit jumps.
 
+## Roblox Game Pass subscription renewals
+
+The Roblox catalog is configured per airline in the Mini App admin panel. A linked Roblox account can use the shared alliance profile while service catalogs remain airline-scoped.
+
+### Monthly renewal model
+- Each service keeps one stable service record (for example, Business Class).
+- Admin creates a new Game Pass in the Roblox Creator Dashboard once per renewal cycle, then updates that service's **Current Game Pass ID** and **Base price in Robux** in Mini App → Admin → Services.
+- The new Game Pass is only the next available renewal method. Changing the ID does **not** delete, shorten, deactivate, or replace anyone's existing rf_subscriptions row.
+- Every passenger keeps an independent starts_at / ends_at. The active service remains available until that passenger's own ends_at, regardless of when the admin rotates the Game Pass ID.
+- When a passenger buys the current Game Pass, the Roblox server verifies ownership with MarketplaceService:UserOwnsGamePassAsync() and calls roblox-api action activate_gamepass.
+- The database records one activation per (profile_id, service_id, gamepass_id). Rechecking the same pass is idempotent and cannot grant another month.
+- The new subscription period starts at max(now(), passenger's latest active ends_at) and adds the service's configured duration_days (normally 30). Early renewals therefore add time after the existing expiry instead of wasting the remaining days.
+- If the passenger's old period has already expired, the new period starts immediately.
+- Old Game Pass ownership is never used as proof of a currently active Business Class subscription. Only the database subscription expiry grants access.
+
+### Admin fields
+- roblox_enabled: allow new in-game Game Pass renewals for the service.
+- roblox_gamepass_id: current pass ID. It is replaced each renewal cycle.
+- robux_price: configured base price used to detect a stale or incorrectly configured pass.
+- duration_days: length of each new subscription period. Changing this affects future purchases only.
+
+The Roblox server should retrieve pass details with MarketplaceService:GetProductInfoAsync(passId, Enum.InfoType.GamePass), verify that the pass is for sale, and compare UserBasePriceInRobux with the app's configured robux_price. It should display the user's actual PriceInRobux, then prompt purchase. On the server-only PromptGamePassPurchaseFinished event, re-check ownership with UserOwnsGamePassAsync before activating anything.
+
+### Backend API contract
+All calls below are server-to-server POST requests to the Supabase roblox-api Edge Function, with x-rf-server-secret. Every request must include the actual server-derived robloxUserId, the current placeId, and jobId.
+
+- catalog — additionally pass airlineCode: "royal" or "azal". Returns enabled services with current gamePassId, robuxPrice, durationDays, and the official Game Pass URL.
+- entitlements — returns the linked passenger's currently active privileges and their individual endsAt timestamps. This is the source of truth for access control.
+- activate_gamepass — pass serviceId, gamePassId, and ownershipVerified: true only after the server has independently confirmed ownership using MarketplaceService. The backend checks that the pass ID is still the current ID configured for that service and performs idempotent activation/renewal.
+- Existing link, heartbeat, and leave actions remain unchanged.
+
+Never grant Business Class merely because UserOwnsGamePassAsync returns true for an old pass. Never derive entitlement from the current Game Pass ID. Never reset all passenger expiries when the ID changes.
+
+**Experience limitation:** Roblox only allows prompting purchases for Game Passes belonging to the current Roblox Experience. If Royal Flight and AZAL are implemented as separate Roblox Experiences, each experience needs its own pass configured for that experience; a Game Pass from one experience cannot be prompted from the other.
+
 ## Important limitations
 - Do not use the secret in a LocalScript, a RemoteEvent payload, or any client-visible asset.
 - Only the listed Place IDs count. Add every legitimate Royal Flight place where players should earn miles.
