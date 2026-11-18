@@ -11,7 +11,7 @@
   document.getElementById('profileShortcut')?.addEventListener('click',()=>openPage('profile'));
   const airlines={
     royal:{name:'ROYAL FLIGHT',sub:'PASSENGER CLUB',miles:'ROYAL MILES',initials:'RF',logo:'./assets/royal-flight-logo.svg',title:'Royal Flight',theme:'royal'},
-    azal:{name:'AZAL',sub:'AZERBAIJAN AIRLINES',miles:'AZAL CLUB',initials:'AZ',logo:'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="24" fill="#fff"/><path d="M18 82 57 24h18L36 82z" fill="#0099d6"/><path d="M40 82 79 24h18L58 82z" fill="#e31e24"/><path d="M61 82 94 34v48z" fill="#009846"/></svg>'),title:'AZAL',theme:'azal'}
+    azal:{name:'AZAL',sub:'AZERBAIJAN AIRLINES',miles:'AZAL CLUB',initials:'AZ',logo:'https://upload.wikimedia.org/wikipedia/commons/4/4d/Azerbaijan_Airlines_logo.svg',title:'AZAL',theme:'azal'}
   };
   function applyAirline(key){
     const a=airlines[key]||airlines.royal;
