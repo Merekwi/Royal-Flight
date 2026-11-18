@@ -22,7 +22,7 @@ Deno.serve(async(req)=>{
     for(const notification of due.data||[]){
       const claimed=await db.from("rf_notifications").update({status:"failed"}).eq("id",notification.id).eq("airline_code",notification.airline_code).eq("status","scheduled").select("id").maybeSingle();
       if(claimed.error||!claimed.data)continue;
-      const profiles=await db.from("rf_profiles").select("id,telegram_id,role,roblox_user_id").eq("airline_code",notification.airline_code);
+      const profiles=await db.from("rf_profiles").select("id,telegram_id,role,roblox_user_id");
       if(profiles.error){failedCount++;continue;}
       let recipients=profiles.data||[];
       if(notification.audience==="admins")recipients=recipients.filter(p=>p.role==="admin"||p.role==="owner");
