@@ -3,3 +3,12 @@
 .brand-logo{display:block;width:42px;height:42px;object-fit:cover;border-radius:12px;flex:0 0 42px;box-shadow:0 5px 16px rgba(176,82,96,.18)}
 
 .roblox-link-button{margin:12px 0 15px;width:100%;min-height:42px}.ledger-card{display:flex;align-items:center;justify-content:space-between;gap:12px}.ledger-card p{margin:6px 0 0}.ledger-delta{font-size:16px;color:#8bd8b5}.setting-state{font-size:9px;color:var(--muted)}
+
+/* Airline switcher */
+.airline-switcher-wrap{display:flex;flex-direction:column;gap:4px;margin-left:auto;margin-right:12px;min-width:112px}
+.airline-switcher-wrap>span{font-size:7px;letter-spacing:1.3px;font-weight:800;color:var(--muted)}
+.airline-switcher-wrap select{max-width:145px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font:700 10px Manrope,sans-serif;padding:8px 22px 8px 9px;outline:none}
+.azal-theme{--gold:#00a0dc;--gold2:#65c8ed}
+.azal-theme .miles-card{border-color:rgba(0,160,220,.42);background:linear-gradient(125deg,#102e49 0%,#0d1c2e 53%,#16364a 100%)}
+.azal-theme .brand-logo{background:#fff}
+@media(max-width:390px){.airline-switcher-wrap{min-width:96px;margin-right:8px}.airline-switcher-wrap select{max-width:120px;font-size:9px}.brand{gap:7px}.brand-logo{width:36px;height:36px;flex-basis:36px}.brand-copy{letter-spacing:1px}.brand-copy strong{font-size:10px}}
