@@ -180,6 +180,37 @@ Deno.serve(async (req) => {
       return json({ order: created.data });
     }
 
+    if (action === "redeem_miles") {
+      const serviceId = validText(body.serviceId, 64) ? body.serviceId : "";
+      const requestKey = validText(body.requestKey, 64) ? body.requestKey : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(serviceId) ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey)) {
+        return json({ error: "invalid_miles_redemption_request" }, 400);
+      }
+      const redeemed = await db.rpc("rf_redeem_miles_for_service", {
+        p_profile_id: profile.id,
+        p_airline_code: airlineCode,
+        p_service_id: serviceId,
+        p_request_key: requestKey
+      });
+      if (redeemed.error) {
+        console.error("miles_redemption_failed", redeemed.error.message);
+        return json({ error: "miles_redemption_failed", message: "Не удалось провести оплату милями. Попробуйте ещё раз." }, 409);
+      }
+      if (redeemed.data?.ok !== true) {
+        const reason = redeemed.data?.reason || "miles_redemption_failed";
+        const messages: Record<string,string> = {
+          insufficient_miles: "Недостаточно миль на балансе.",
+          miles_payment_requires_rub: "Оплата милями пока доступна только для услуг с ценой в рублях.",
+          miles_payment_unavailable: "Оплата милями для этой услуги недоступна.",
+          service_unavailable: "Услуга больше недоступна.",
+          profile_not_found: "Профиль участника не найден."
+        };
+        return json({ error: reason, message: messages[reason] || "Не удалось провести оплату милями." }, 409);
+      }
+      return json({ redemption: redeemed.data });
+    }
+
     if (action === "mark_paid") {
       if (!validText(body.orderId,64)) return json({ error: "order_id_required" }, 400);
       const patch: Record<string, unknown> = { status: "awaiting_review" };
