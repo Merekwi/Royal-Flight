@@ -139,7 +139,10 @@ async function setFormStatus(formId,next){
  catch(e){api().notify(e.message||'Не удалось изменить статус')}
 }
 function beforeFields(sectionIndex,fieldIndex){
- const out=[];builder.schema.sections.forEach((s,i)=>{if(i<sectionIndex)out.push(...s.fields);else if(i===sectionIndex&&fieldIndex>=0)out.push(...s.fields.slice(0,fieldIndex))});return out;
+ const out=[];builder.schema.sections.forEach((s,i)=>{if(i<sectionIndex)out.push(...s.fields);else if(i===sectionIndex)out.push(...(fieldIndex<0?s.fields:s.fields.slice(0,fieldIndex)))});return out;
+}
+function beforeSections(sectionIndex){
+ const out=[];builder.schema.sections.slice(0,sectionIndex).forEach(s=>out.push(...s.fields));return out;
 }
 function conditionText(rule,fields){
  if(!rule||!rule.fieldId)return 'Показывать всегда';
@@ -164,7 +167,7 @@ function readLogic(prefix){
 function builderHtml(){
  return '<div class="career-builder"><div class="career-builder-meta"><div class="modal-field career-builder-wide"><label class="modal-field-label">Название набора</label><input class="modal-input" data-meta="title" maxlength="120" value="'+esc(builder.title)+'"></div><div class="modal-field"><label class="modal-field-label">Подразделение / должность</label><input class="modal-input" data-meta="department" maxlength="100" value="'+esc(builder.department)+'"></div><div class="modal-field"><label class="modal-field-label">Окончание приёма</label><input class="modal-input" data-meta="closes_at" type="datetime-local" value="'+esc(localInput(builder.closes_at))+'"></div><div class="modal-field career-builder-wide"><label class="modal-field-label">Описание для кандидатов</label><textarea class="modal-textarea" data-meta="description" rows="3" maxlength="2500">'+esc(builder.description)+'</textarea></div></div><div><p class="eyebrow">FORM STRUCTURE</p><h3 class="subheading">Разделы и вопросы</h3><p class="muted">Разделы объединяют вопросы в смысловые блоки. Раздел или отдельный вопрос можно показывать только при определённом ответе.</p></div>'+
  builder.schema.sections.map((s,si)=>{
-  const prev=beforeFields(si,-1);
+  const prev=beforeSections(si);
   return '<section class="career-builder-section"><div class="career-builder-section-head"><div><strong>'+esc(s.title)+'</strong><small>'+esc(s.description||'')+'</small><small>'+esc(conditionText(s.visibleWhen,prev))+'</small></div><button class="career-mini-action" data-edit-section="'+si+'">Настроить</button></div><div class="career-builder-items">'+(s.fields.length?s.fields.map((f,fi)=>'<div class="career-builder-item"><span>?</span><div><strong>'+esc(f.label)+'</strong><small>'+esc(types[f.type])+(f.required?' · обязательно':' · необязательно')+' · '+esc(conditionText(f.visibleWhen,beforeFields(si,fi)))+'</small></div><button data-edit-question="'+si+':'+fi+'">Изменить</button><button data-remove-question="'+si+':'+fi+'">×</button></div>').join(''):'<p class="muted">В этом разделе пока нет вопросов.</p>')+'</div><div class="career-builder-section-actions"><button class="secondary-button" data-add-question="'+si+'">+ Добавить вопрос</button><button class="secondary-button" data-remove-section="'+si+'">Удалить раздел</button></div></section>';
  }).join('')+'<button class="career-builder-add" data-add-section>+ Добавить раздел / модуль</button><p class="modal-hint">В условии можно указать, какой ответ на предыдущий вопрос должен быть выбран, чтобы открыть следующий блок.</p></div>';
 }
@@ -193,7 +196,7 @@ function showBuilder(){
 }
 function editSection(i){
  const s=builder.schema.sections[i];
- api().showModal({title:'Настройка раздела',subtitle:'Раздел анкеты',content:'<div class="career-builder"><div class="modal-field"><label class="modal-field-label">Название раздела</label><input class="modal-input" id="csTitle" maxlength="100" value="'+esc(s.title)+'"></div><div class="modal-field"><label class="modal-field-label">Описание / инструкция</label><textarea class="modal-textarea" id="csDescription" rows="3">'+esc(s.description||'')+'</textarea></div>'+logicHtml(beforeFields(i,-1),s.visibleWhen,'cs')+'</div>',actions:[
+ api().showModal({title:'Настройка раздела',subtitle:'Раздел анкеты',content:'<div class="career-builder"><div class="modal-field"><label class="modal-field-label">Название раздела</label><input class="modal-input" id="csTitle" maxlength="100" value="'+esc(s.title)+'"></div><div class="modal-field"><label class="modal-field-label">Описание / инструкция</label><textarea class="modal-textarea" id="csDescription" rows="3">'+esc(s.description||'')+'</textarea></div>'+logicHtml(beforeSections(i),s.visibleWhen,'cs')+'</div>',actions:[
   {label:'Назад',onClick:showBuilder},{label:'Сохранить раздел',primary:true,onClick:()=>{try{const title=$('csTitle').value.trim();if(!title)throw new Error('Укажите название раздела.');s.title=title;s.description=$('csDescription').value.trim();s.visibleWhen=readLogic('cs');api().closeModal();showBuilder()}catch(e){api().notify(e.message)}}}
  ]});
 }
