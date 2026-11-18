@@ -26,8 +26,22 @@ Deno.serve(async (req) => {
       return json({ error: "invalid_request" }, 400);
     }
     const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-    // Mileage heartbeats are accepted from any Roblox place running the trusted
-    // server script. Other portal actions remain restricted to configured place IDs.
+    // The Roblox menu/place must never generate miles. The database RPC enforces
+    // the same exclusion as a second layer of protection.
+    if (["heartbeat_batch", "heartbeat"].includes(action)) {
+      const excludedSetting = await db.from("rf_settings").select("value").eq("key", "roblox_miles_excluded_place_ids").maybeSingle();
+      if (excludedSetting.error) return json({ error: "mileage_settings_unavailable" }, 503);
+      const excluded = Array.isArray(excludedSetting.data?.value)
+        ? excludedSetting.data.value.map((x: unknown) => String(x))
+        : [];
+      if (excluded.includes(String(placeId))) {
+        return action === "heartbeat_batch"
+          ? json({ ok: true, excluded: true, processed: Array.isArray(body?.players) ? body.players.length : 0, linked: 0, unlinked: 0 })
+          : json({ ok: true, excluded: true, miles_added: 0 });
+      }
+    }
+    // Mileage heartbeats are accepted from any non-excluded Roblox place running
+    // the trusted server script. Other portal actions remain restricted to configured place IDs.
     if (!["heartbeat_batch", "heartbeat", "leave"].includes(action)) {
       const setting = await db.from("rf_settings").select("value").eq("key", "roblox_place_ids").maybeSingle();
       const allowed = Array.isArray(setting.data?.value) ? setting.data.value.map((x: unknown) => String(x)) : [];
