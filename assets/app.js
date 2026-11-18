@@ -9,6 +9,28 @@
   function openPage(name){const p=document.getElementById('page-'+name);if(!p)return;pages.forEach(x=>x.classList.toggle('active',x===p));nav.forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(tg?.HapticFeedback)tg.HapticFeedback.selectionChanged()}
   document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>openPage(x.dataset.page)));
   document.getElementById('profileShortcut')?.addEventListener('click',()=>openPage('profile'));
+  const airlines={
+    royal:{name:'ROYAL FLIGHT',sub:'PASSENGER CLUB',miles:'ROYAL MILES',initials:'RF',logo:'./assets/royal-flight-logo.svg',title:'Royal Flight',theme:'royal'},
+    azal:{name:'AZAL',sub:'AZERBAIJAN AIRLINES',miles:'AZAL CLUB',initials:'AZ',logo:'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="24" fill="#fff"/><path d="M18 82 57 24h18L36 82z" fill="#0099d6"/><path d="M40 82 79 24h18L58 82z" fill="#e31e24"/><path d="M61 82 94 34v48z" fill="#009846"/></svg>'),title:'AZAL',theme:'azal'}
+  };
+  function applyAirline(key){
+    const a=airlines[key]||airlines.royal;
+    document.body.classList.toggle('azal-theme',key==='azal');
+    const logo=document.querySelector('.brand-logo');if(logo){logo.src=a.logo;logo.alt=a.title}
+    const brand=document.querySelector('.brand-copy');if(brand){brand.querySelector('strong').textContent=a.name;brand.querySelector('small').textContent=a.sub}
+    const pill=document.querySelector('.miles-card .pill');if(pill) pill.innerHTML='<span class="status-dot"></span> '+a.miles;
+    const home=document.querySelector('#page-home #welcomeName');
+    if(home&&!dashboard?.profile?.display_name)home.textContent='Ваша программа лояльности '+a.title;
+    document.querySelector('#page-flights .eyebrow').textContent=a.name;
+    document.querySelector('#page-profile .page-heading .muted').textContent='Ваш профиль в '+a.title+'.';
+    const select=document.getElementById('airlineSwitcher');if(select)select.value=key;
+    document.title=a.title+' — личный кабинет';
+    try{localStorage.setItem('rf_selected_airline',key)}catch(_){}
+  }
+  const airlineSelect=document.getElementById('airlineSwitcher');
+  const selectedAirline=(()=>{try{return localStorage.getItem('rf_selected_airline')||'royal'}catch(_){return 'royal'}})();
+  applyAirline(selectedAirline);
+  airlineSelect?.addEventListener('change',()=>{applyAirline(airlineSelect.value);notify('Выбрана авиакомпания: '+airlines[airlineSelect.value].title)});
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=v=>v?new Date(v).toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
   const money=(v,c='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:c,maximumFractionDigits:2}).format(Number(v||0));
@@ -26,7 +48,7 @@
       const d=await r.json();if(!r.ok||!d.profile){console.warn('Telegram authentication failed:',d);if(identity)identity.textContent=d.message||('Ошибка авторизации: '+(d.error||r.status));return}
       const p=d.profile,name=p.display_name||'Пассажир Royal Flight';
       document.getElementById('profileName').textContent=name;
-      document.getElementById('welcomeName').textContent=name+', добро пожаловать в Royal Flight';
+      document.getElementById('welcomeName').textContent=name+', добро пожаловать в '+(airlineSelect?.value==='azal'?'AZAL':'Royal Flight');
       document.getElementById('telegramIdentity').textContent=p.telegram_username?'@'+p.telegram_username:'Telegram ID: '+p.telegram_id;
       const initials=name.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'RF';
       const avatarInitials=document.getElementById('avatarInitials');if(avatarInitials)avatarInitials.textContent=initials;document.getElementById('profileAvatar').textContent=initials;
