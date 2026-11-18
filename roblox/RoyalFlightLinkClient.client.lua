@@ -1,4 +1,4 @@
--- Royal Flight | StarterPlayer/StarterPlayerScripts/RoyalFlightLinkClient.client.lua
+-- Royal Alliance | StarterPlayer/StarterPlayerScripts/RoyalFlightLinkClient.client.lua
 -- This creates a small in-game panel for entering the one-time code from the Telegram Mini App.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,7 +16,7 @@ open.Size = UDim2.fromOffset(150, 38)
 open.Position = UDim2.new(1, -166, 1, -58)
 open.BackgroundColor3 = Color3.fromRGB(176, 82, 96)
 open.TextColor3 = Color3.fromRGB(255, 255, 255)
-open.Text = "ROYAL FLIGHT"
+open.Text = "ROYAL ALLIANCE"
 open.Font = Enum.Font.GothamBold
 open.TextSize = 13
 open.Parent = gui
