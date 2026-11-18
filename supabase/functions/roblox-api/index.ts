@@ -26,9 +26,13 @@ Deno.serve(async (req) => {
       return json({ error: "invalid_request" }, 400);
     }
     const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-    const setting = await db.from("rf_settings").select("value").eq("key", "roblox_place_ids").maybeSingle();
-    const allowed = Array.isArray(setting.data?.value) ? setting.data.value.map((x: unknown) => String(x)) : [];
-    if (!allowed.includes(String(placeId))) return json({ error: "place_not_allowed" }, 403);
+    // Mileage heartbeats are accepted from any Roblox place running the trusted
+    // server script. Other portal actions remain restricted to configured place IDs.
+    if (!["heartbeat_batch", "heartbeat", "leave"].includes(action)) {
+      const setting = await db.from("rf_settings").select("value").eq("key", "roblox_place_ids").maybeSingle();
+      const allowed = Array.isArray(setting.data?.value) ? setting.data.value.map((x: unknown) => String(x)) : [];
+      if (!allowed.includes(String(placeId))) return json({ error: "place_not_allowed" }, 403);
+    }
 
     if (action === "link") {
       const code = typeof body?.code === "string" ? body.code.trim().toUpperCase() : "";
