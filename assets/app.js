@@ -317,7 +317,7 @@
       showAdminForm({title:'Новое объявление',subtitle:'Создайте уведомление для участников приложения.',fields:[
         {name:'title',label:'Заголовок',required:true,placeholder:'Важная информация'},
         {name:'body',label:'Текст объявления',type:'textarea',rows:4,required:true,placeholder:'Сообщение для пассажиров'},
-        {name:'audience',label:'Кому отправить',type:'select',options:[{value:'all',label:'Всем участникам'},{value:'admins',label:'Администраторам'},{value:'roblox_linked',label:'Привязавшим Roblox'},{value:'active_service',label:'С активной услугой'}]},
+        {name:'audience',label:'Кому отправить',type:'select',options:[{value:'all',label:'Всем участникам'},{value:'admins',label:'Администраторам'},...(airline().roblox?[{value:'roblox_linked',label:'Привязавшим Roblox'}]:[]),{value:'active_service',label:'С активной услугой'}]},
         {name:'scheduledAt',label:'Отложенная отправка',type:'datetime-local'}
       ],submitLabel:'Опубликовать',onSubmit:async v=>{
         if(!v.title||!v.body){notify('Заполните заголовок и текст');return false}
@@ -326,8 +326,8 @@
       }});return;
     }
     if(section==='settings'){
-      if(currentAirline==='azal'){notify('Настройки Roblox доступны только в портале Royal Flight.');return}
-      showModal({title:'Настройки клуба',subtitle:'Выберите параметр, который нужно изменить.',content:'<div class="settings-action-list"><button class="settings-action" data-setting="rate"><span class="settings-action-icon">✦</span><span><strong>Начисление миль</strong><small>Мили за минуту на сервере</small></span><b>›</b></button><button class="settings-action" data-setting="payment"><span class="settings-action-icon">▤</span><span><strong>Способ оплаты</strong><small>Добавить платёжные реквизиты</small></span><b>›</b></button><button class="settings-action" data-setting="places"><span class="settings-action-icon">⌖</span><span><strong>Серверы Roblox</strong><small>Разрешённые Place ID</small></span><b>›</b></button></div>',actions:[{label:'Закрыть',onClick:closeModal}]});
+      showModal({title:'Настройки клуба',subtitle:'Выберите параметр, который нужно изменить.',content:'<div class="settings-action-list"><button class="settings-action" data-setting="rate" data-royal-only><span class="settings-action-icon">✦</span><span><strong>Начисление миль</strong><small>Мили за минуту на сервере</small></span><b>›</b></button><button class="settings-action" data-setting="payment"><span class="settings-action-icon">▤</span><span><strong>Способ оплаты</strong><small>Добавить платёжные реквизиты</small></span><b>›</b></button><button class="settings-action" data-setting="places" data-royal-only><span class="settings-action-icon">⌖</span><span><strong>Серверы Roblox</strong><small>Разрешённые Place ID</small></span><b>›</b></button></div>',actions:[{label:'Закрыть',onClick:closeModal}]});
+      modalRoot.querySelectorAll('[data-royal-only]').forEach(el=>el.hidden=currentAirline!=='royal');
       modalRoot.querySelector('[data-setting="rate"]')?.addEventListener('click',()=>{
         closeModal();showAdminForm({title:'Начисление миль',subtitle:'Установите количество миль за минуту на сервере.',fields:[{name:'rate',label:'Миль за минуту',type:'number',value:'10',required:true}],submitLabel:'Сохранить',onSubmit:async v=>{const rate=Number(v.rate);if(!Number.isInteger(rate)||rate<0||rate>10000){notify('Укажите целое число от 0 до 10000');return false}await call('admin_set_miles_rate',{milesPerMinute:rate});notify('Ставка обновлена');return true}});
       });
