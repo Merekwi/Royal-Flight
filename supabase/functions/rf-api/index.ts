@@ -48,7 +48,8 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json();
     if (!validText(body?.initData, 10000) || !validText(body?.action, 64)) return json({ error: "invalid_request" }, 400);
-    const airlineCode = body.airlineCode === "azal" ? "azal" : "royal";
+    const airlineCode = body.airlineCode;
+    if (airlineCode !== "royal" && airlineCode !== "azal") return json({ error: "invalid_airline_code" }, 400);
     const telegram = await verifyInitData(body.initData, botToken);
     if (!telegram) return json({ error: "telegram_verification_failed" }, 401);
     const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
