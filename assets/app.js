@@ -34,29 +34,113 @@
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=v=>v?new Date(v).toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
   const money=(v,c='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:c,maximumFractionDigits:2}).format(Number(v||0));
-  async function call(action,extra={}){if(!tg?.initData)throw new Error('Откройте приложение через Telegram.');const r=await fetch(URL+'/functions/v1/rf-api',{method:'POST',headers:{'Content-Type':'application/json','apikey':KEY},body:JSON.stringify({initData:tg.initData,action,...extra}),cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.message||d.error||'Ошибка сервера');return d}
+  async function functionRequest(name,payload){
+    const controller=typeof AbortController!=='undefined'?new AbortController():null;
+    const timeout=controller?setTimeout(()=>controller.abort(),15000):null;
+    try{
+      const response=await fetch(URL+'/functions/v1/'+name,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':KEY},
+        body:JSON.stringify(payload),
+        cache:'no-store',
+        ...(controller?{signal:controller.signal}:{})
+      });
+      const raw=await response.text();
+      let data={};
+      try{data=raw?JSON.parse(raw):{}}catch(_){data={error:'invalid_server_response',message:raw.slice(0,160)}}
+      if(!response.ok){
+        const error=new Error(data.message||data.error||('HTTP '+response.status));
+        error.status=response.status;error.payload=data;throw error;
+      }
+      return data;
+    }catch(error){
+      if(error?.name==='AbortError'){
+        const e=new Error('Сервер не ответил за 15 секунд.');e.kind='timeout';throw e;
+      }
+      if(error instanceof TypeError){
+        const e=new Error('Браузер не смог установить соединение с сервером.');e.kind='network';e.original=error;throw e;
+      }
+      throw error;
+    }finally{if(timeout)clearTimeout(timeout)}
+  }
+  function explainApiError(error,stage){
+    const code=error?.payload?.error||'';
+    if(code==='server_not_configured')return 'На сервере не настроены обязательные секреты TELEGRAM_BOT_TOKEN или SUPABASE_SERVICE_ROLE_KEY. Нужна проверка настроек Edge Functions.';
+    if(code==='telegram_verification_failed')return 'Telegram не подтвердил подпись сеанса. Закройте Mini App и откройте его заново через кнопку бота.';
+    if(code==='invalid_init_data')return 'Telegram не передал корректные данные запуска. Откройте Mini App непосредственно из бота.';
+    if(code==='profile_upsert_failed'||code==='profile_unavailable')return 'Telegram распознан, но Supabase не смог сохранить профиль. Проверьте доступность базы и таблицу rf_profiles.';
+    if(code==='dashboard_load_failed')return 'Профиль авторизован, но данные кабинета не загрузились. Проверьте таблицы и соединение с Postgres.';
+    if(code==='invalid_server_response')return 'Сервер вернул ответ в неожиданном формате. Проверьте логи Edge Functions.';
+    if(error?.kind==='timeout')return 'Supabase не ответил за 15 секунд. Проект может ещё запускаться после восстановления или база недоступна.';
+    if(error?.kind==='network')return 'Нет соединения с API Supabase либо запрос заблокирован CORS. Проверьте сеть и статус проекта.';
+    if(error?.status===401)return stage==='auth'?'Сеанс Telegram недействителен или устарел. Перезапустите Mini App из бота.':'Сервер отклонил авторизацию запроса.';
+    if(error?.status===404)return 'Функция Supabase не найдена. Проверьте имя и публикацию Edge Function.';
+    if(error?.status===502||error?.status===503||error?.status===504)return 'Сервис Supabase временно недоступен. Проверьте статус проекта и повторите запрос после запуска базы.';
+    if(error?.status>=500)return 'Внутренняя ошибка сервера Supabase ('+error.status+'). Нужны журналы функции.';
+    if(error?.status)return 'Сервер вернул HTTP '+error.status+': '+(code||'неизвестная ошибка')+'.';
+    return error?.message||'Неизвестная ошибка подключения.';
+  }
+  function showConnectionBanner(title,message,showRetry=true){
+    const box=document.getElementById('connectionStatus');
+    if(!box)return;
+    document.getElementById('connectionTitle').textContent=title;
+    document.getElementById('connectionMessage').textContent=message;
+    const retry=document.getElementById('connectionRetry');if(retry)retry.hidden=!showRetry;
+    box.hidden=false;
+  }
+  function hideConnectionBanner(){
+    const box=document.getElementById('connectionStatus');if(box)box.hidden=true;
+  }
+  document.getElementById('connectionRetry')?.addEventListener('click',async()=>{
+    const button=document.getElementById('connectionRetry');
+    if(button){button.disabled=true;button.textContent='Проверяем…'}
+    await signIn();
+    if(button){button.disabled=false;button.textContent='Повторить'}
+  });
+  async function call(action,extra={}){
+    if(!tg?.initData)throw new Error('Откройте приложение через Telegram.');
+    return functionRequest('rf-api',{initData:tg.initData,action,...extra});
+  }
   async function signIn(){
     const identity=document.getElementById('telegramIdentity');
     if(!tg?.initData){
-      if(identity)identity.textContent='Telegram не передал данные входа. Закройте окно и откройте Mini App кнопкой в боте Royal Flight.';
+      if(identity)identity.textContent='Откройте Mini App через кнопку в Telegram-боте.';
       document.getElementById('profileName').textContent='Ожидание авторизации';
+      showConnectionBanner('Нет данных Telegram','Приложение открыто вне Telegram или Telegram не передал initData. Запустите его через кнопку бота.',true);
       return;
     }
     if(identity)identity.textContent='Проверяем данные Telegram…';
     try{
-      const r=await fetch(URL+'/functions/v1/telegram-auth',{method:'POST',headers:{'Content-Type':'application/json','apikey':KEY},body:JSON.stringify({initData:tg.initData}),cache:'no-store'});
-      const d=await r.json();if(!r.ok||!d.profile){console.warn('Telegram authentication failed:',d);if(identity)identity.textContent=d.message||('Ошибка авторизации: '+(d.error||r.status));return}
+      const d=await functionRequest('telegram-auth',{initData:tg.initData});
+      if(!d.profile)throw new Error(d.error||'Сервер не вернул профиль пользователя.');
       const p=d.profile,name=p.display_name||'Пассажир Royal Flight';
       document.getElementById('profileName').textContent=name;
       document.getElementById('welcomeName').textContent=name+', добро пожаловать в '+(airlineSelect?.value==='azal'?'AZAL':'Royal Flight');
       document.getElementById('telegramIdentity').textContent=p.telegram_username?'@'+p.telegram_username:'Telegram ID: '+p.telegram_id;
       const initials=name.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'RF';
-      const avatarInitials=document.getElementById('avatarInitials');if(avatarInitials)avatarInitials.textContent=initials;document.getElementById('profileAvatar').textContent=initials;
+      const avatarInitials=document.getElementById('avatarInitials');if(avatarInitials)avatarInitials.textContent=initials;
+      document.getElementById('profileAvatar').textContent=initials;
       if(p.role==='admin'||p.role==='owner')document.getElementById('adminNav').hidden=false;
+      hideConnectionBanner();
       await loadDashboard();
-    }catch(e){console.warn('Royal Flight backend is not ready yet:',e);if(identity)identity.textContent='Не удалось связаться с сервером. Проверьте подключение и перезапустите Mini App.'}
+    }catch(e){
+      console.warn('Telegram authentication failed:',{message:e.message,status:e.status,code:e.payload?.error,kind:e.kind});
+      if(identity)identity.textContent=explainApiError(e,'auth');
+      showConnectionBanner('Не удалось войти',explainApiError(e,'auth'),true);
+    }
   }
-  async function loadDashboard(){try{dashboard=await call('dashboard');render(dashboard)}catch(e){console.warn('Dashboard unavailable:',e.message)}}
+  async function loadDashboard(){
+    try{
+      dashboard=await call('dashboard');
+      render(dashboard);
+      hideConnectionBanner();
+      return true;
+    }catch(e){
+      console.warn('Dashboard unavailable:',{message:e.message,status:e.status,code:e.payload?.error,kind:e.kind});
+      showConnectionBanner('Профиль подтверждён, но данные не загружены',explainApiError(e,'dashboard'),true);
+      return false;
+    }
+  }
   function render(d){
     const p=d.profile||{},m=Number(p.miles||0).toLocaleString('ru-RU');
     document.getElementById('milesBalance').textContent=m;document.getElementById('milesBalanceDetail').textContent=m;
