@@ -1,7 +1,7 @@
-# Royal Flight — Roblox bridge
+# Royal Alliance Lobby — Roblox integration for the Royal Flight portal
 
 ## What this adds
-- A one-time code generated in the Telegram Mini App and entered in the Royal Flight Roblox game.
+- A one-time code generated in the Telegram Mini App and entered in the [Royal Alliance Roblox lobby](https://www.roblox.com/games/101826857818257).
 - Roblox identity is taken from the server-side `Player.UserId` and `Player.Name`, not from a user-submitted username.
 - The server sends a heartbeat every 60 seconds while the player remains in a Roblox server where the trusted ServerScript is installed.
 - The backend credits complete minutes only. The current database rate is 1 Royal Alliance mile per credited minute; a Royal Flight portal admin can change the rate in that portal.
@@ -14,15 +14,15 @@
 2. Choose a long random secret (at least 32 random characters). Do not put it in a LocalScript or publish it in chat.
 3. In Supabase project `iotwbzzlwltjfddrmhvg`, add the Edge Function secret `ROBLOX_SERVER_SECRET` with that value. The secret-management UI/CLI is required; it is not stored in this repository.
 4. Paste the same value into the `SERVER_SECRET` constant in `RoyalFlightLinkServer.server.lua`. This is a server Script in ServerScriptService, so it is not replicated to clients.
-5. Publish the game and copy the **Place ID** of the place where players actually spend time.
-6. Open the Mini App as the owner/admin → **Настройки** → **Серверы Roblox** and add the Royal Flight place where users will link their account or use Game Pass features. This allow-list is for linking and other Roblox portal actions, not mileage heartbeats. The API rejects any Place ID not on this list.
+5. Publish the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) and copy its **Place ID** (`101826857818257`).
+6. Open the Mini App as the owner/admin → **Настройки** → **Серверы Roblox** and add the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) where users will link their account or use Game Pass features. This allow-list is for linking and other Roblox portal actions, not mileage heartbeats. The API rejects any Place ID not on this list.
 7. Put `RoyalFlightLinkServer.server.lua` in **ServerScriptService** and `RoyalFlightLinkClient.client.lua` in **StarterPlayer → StarterPlayerScripts**.
 8. Test in a published server. Studio local sessions will not earn miles unless the published Place ID is allow-listed and HTTP requests work.
 
 ## Link flow
 1. Player opens Mini App → Profile → **Привязать Roblox**.
 2. The Mini App shows a one-time code valid for 10 minutes.
-3. Player joins the approved Royal Flight place, opens the in-game **ROYAL FLIGHT** panel and enters the code.
+3. Player joins the approved **Royal Alliance lobby**, opens the in-game **ROYAL ALLIANCE** panel and enters the code.
 4. The server submits the code with the actual Roblox UserId and username. The code can only be used once, and a Roblox account cannot be linked to two Telegram profiles.
 5. After linking, each 60-second heartbeat confirms presence. The server caps a delayed heartbeat to 90 seconds to prevent large offline credit jumps.
 
@@ -78,7 +78,7 @@ Changing the mode affects only future payment options. Existing orders, complete
 ## Important limitations
 - Do not use the secret in a LocalScript, a RemoteEvent payload, or any client-visible asset.
 - Install the trusted ServerScript in every Roblox Experience/Place where players should earn miles. Only the configured excluded menu Place is ignored for mileage; ordinary heartbeat requests do not need to be allow-listed.
-- The initial Roblox linking action and Game Pass/catalog actions still use the separate approved Place ID allow-list. Add the Royal Flight linking place there so players can link their accounts.
+- The initial Roblox linking action and Game Pass/catalog actions still use the separate approved Place ID allow-list. Add the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) there so players can link their accounts.
 - The excluded mileage Place is stored in `rf_settings.roblox_miles_excluded_place_ids`; it must contain the menu Place ID as a string.
 - Roblox HTTP calls can fail temporarily; those gaps are not retroactively credited.
-- Before public launch, configure the owner's numeric Telegram ID in `rf_settings.owner_telegram_id`, set the Edge Function secret above, and add the Royal Flight linking place to the approved-place list. An empty allow-list blocks linking and other portal actions, but it does not block mileage heartbeats.
+- Before public launch, configure the owner's numeric Telegram ID in `rf_settings.owner_telegram_id`, set the Edge Function secret above, and add the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) to the approved-place list. An empty allow-list blocks linking and other portal actions, but it does not block mileage heartbeats.
