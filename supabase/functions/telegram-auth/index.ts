@@ -4,6 +4,7 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Max-Age": "86400",
 };
 
 function hex(buffer: ArrayBuffer): string {
@@ -68,6 +69,7 @@ Deno.serve(async (req) => {
 
     const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
     const ownerSetting = await db.from("rf_settings").select("value").eq("key","owner_telegram_id").maybeSingle();
+    if (ownerSetting.error) console.warn("owner_setting_read_failed:", ownerSetting.error.message);
     const ownerValue = ownerSetting.data?.value;
     const isConfiguredOwner = ownerValue !== null && ownerValue !== undefined && String(ownerValue).replace(/^"|"$/g,"") === verified.telegram_id;
     const profilePatch = {
@@ -82,10 +84,18 @@ Deno.serve(async (req) => {
 
     if (error || !data) {
       console.error("profile_upsert_failed", error?.message);
-      return new Response(JSON.stringify({ error: "profile_upsert_failed" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({
+        error: "profile_upsert_failed",
+        message: "Telegram подтверждён, но база данных не смогла сохранить профиль."
+      }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
     }
     return new Response(JSON.stringify({ profile: data }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } });
-  } catch {
-    return new Response(JSON.stringify({ error: "bad_request" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown";
+    console.error("telegram-auth internal error:", message);
+    return new Response(
+      JSON.stringify({ error: "internal_error", message: "Не удалось завершить авторизацию на сервере. Проверьте доступность базы данных и повторите попытку." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" } },
+    );
   }
 });
