@@ -45,6 +45,80 @@ Deno.serve(async (req) => {
       return json({ ok: true, robloxUsername: result.data?.roblox_username });
     }
 
+    if (action === "catalog") {
+      const airlineCode = typeof body?.airlineCode === "string" ? body.airlineCode : "";
+      if (!["royal","azal"].includes(airlineCode)) return json({ error: "invalid_airline_code" }, 400);
+      const [profile, services] = await Promise.all([
+        db.from("rf_profiles").select("display_name,roblox_username").eq("roblox_user_id", userId).maybeSingle(),
+        db.from("rf_services")
+          .select("id,airline_code,code,name,description,duration_days,roblox_gamepass_id,robux_price")
+          .eq("airline_code", airlineCode).eq("active", true).eq("roblox_enabled", true)
+          .order("sort_order")
+      ]);
+      if (services.error) return json({ error: "catalog_load_failed" }, 503);
+      return json({
+        ok: true,
+        airlineCode,
+        linked: !!profile.data,
+        profile: profile.data || null,
+        services: (services.data || []).filter((s: any) => s.roblox_gamepass_id && Number(s.robux_price) > 0).map((s: any) => ({
+          id: s.id, airlineCode: s.airline_code, code: s.code, name: s.name,
+          description: s.description, durationDays: s.duration_days,
+          gamePassId: s.roblox_gamepass_id, robuxPrice: s.robux_price,
+          gamePassUrl: "https://www.roblox.com/game-pass/" + s.roblox_gamepass_id
+        }))
+      });
+    }
+
+    if (action === "entitlements") {
+      const profile = await db.from("rf_profiles").select("id").eq("roblox_user_id", userId).maybeSingle();
+      if (profile.error) return json({ error: "profile_lookup_failed" }, 503);
+      if (!profile.data) return json({ error: "account_not_linked" }, 403);
+      const now = new Date().toISOString();
+      const subscriptions = await db.from("rf_subscriptions")
+        .select("id,airline_code,service_id,starts_at,ends_at,status")
+        .eq("profile_id", profile.data.id).eq("status", "active").gt("ends_at", now)
+        .order("ends_at");
+      if (subscriptions.error) return json({ error: "entitlements_load_failed" }, 503);
+      const serviceIds = [...new Set((subscriptions.data || []).map((s: any) => s.service_id))];
+      const services = serviceIds.length
+        ? await db.from("rf_services").select("id,airline_code,code,name").in("id", serviceIds)
+        : { data: [], error: null };
+      if (services.error) return json({ error: "entitlements_load_failed" }, 503);
+      const serviceById = new Map((services.data || []).map((s: any) => [s.id, s]));
+      return json({
+        ok: true,
+        entitlements: (subscriptions.data || []).map((s: any) => ({
+          id: s.id, airlineCode: s.airline_code, serviceId: s.service_id,
+          startsAt: s.starts_at, endsAt: s.ends_at, status: s.status,
+          service: serviceById.get(s.service_id) || null
+        }))
+      });
+    }
+
+    if (action === "activate_gamepass") {
+      const serviceId = typeof body?.serviceId === "string" ? body.serviceId : "";
+      const gamePassId = typeof body?.gamePassId === "string" ? body.gamePassId : "";
+      if (!serviceId || !/^[1-9][0-9]{0,19}$/.test(gamePassId) || body?.ownershipVerified !== true) {
+        return json({ error: "invalid_verified_purchase" }, 400);
+      }
+      const activation = await db.rpc("rf_activate_roblox_gamepass", {
+        p_roblox_user_id: userId,
+        p_service_id: serviceId,
+        p_gamepass_id: gamePassId,
+        p_place_id: placeId,
+        p_job_id: jobId
+      });
+      if (activation.error) {
+        console.error("roblox_gamepass_activation_failed", activation.error.message);
+        return json({ error: "gamepass_activation_failed" }, 409);
+      }
+      if (activation.data?.ok !== true) {
+        return json({ error: activation.data?.reason || "gamepass_not_activated", result: activation.data }, 409);
+      }
+      return json(activation.data);
+    }
+
     if (action === "heartbeat") {
       const result = await db.rpc("rf_roblox_heartbeat", {
         p_roblox_user_id: userId, p_place_id: placeId, p_job_id: jobId, p_now: new Date().toISOString()
