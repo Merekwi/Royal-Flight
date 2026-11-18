@@ -2,7 +2,7 @@
   const tg=window.Telegram?.WebApp;
   if(tg){tg.ready();tg.expand();try{tg.setHeaderColor('#07111f');tg.setBackgroundColor('#07111f')}catch(_){}}
   const pages=[...document.querySelectorAll('.page')], nav=[...document.querySelectorAll('.nav-item')], toast=document.getElementById('toast');
-  let timer=null, dashboard=null;
+  let timer=null, dashboard=null, currentAirline='royal', authGeneration=0;
   const URL='https://iotwbzzlwltjfddrmhvg.supabase.co';
   const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvdHdienpsd2x0amZkZHJtaHZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5NTEwNDksImV4cCI6MjEwODUyNzA0OX0.Bg-ww-s0WVpVwuJymjREB3z6eeY0S_8ZfFE5tnqUYz0';
   function notify(s){toast.textContent=s;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2800);if(tg?.HapticFeedback)tg.HapticFeedback.impactOccurred('light')}
@@ -10,27 +10,46 @@
   document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>openPage(x.dataset.page)));
   document.getElementById('profileShortcut')?.addEventListener('click',()=>openPage('profile'));
   const airlines={
-    royal:{name:'ROYAL FLIGHT',sub:'PASSENGER CLUB',miles:'ROYAL MILES',initials:'RF',logo:'./assets/royal-flight-logo.svg',title:'Royal Flight',theme:'royal'},
-    azal:{name:'AZAL',sub:'AZERBAIJAN AIRLINES',miles:'AZAL CLUB',initials:'AZ',logo:'https://upload.wikimedia.org/wikipedia/commons/4/4d/Azerbaijan_Airlines_logo.svg',title:'AZAL',theme:'azal'}
+    royal:{code:'royal',name:'ROYAL FLIGHT',sub:'PASSENGER CLUB',miles:'ROYAL MILES',initials:'RF',logo:'./assets/royal-flight-logo.svg',title:'Royal Flight',theme:'royal',currency:'RUB',welcomeEyebrow:'ВАШЕ ПУТЕШЕСТВИЕ НАЧИНАЕТСЯ ЗДЕСЬ',welcomeCopy:'Участник программы Royal Flight Passenger Club',milesDescription:'Отдельный баланс Royal Miles и история операций Royal Flight.',serviceDescription:'Услуги и привилегии Royal Flight для участников программы.',serviceIntro:'Путешествуйте с комфортом',roblox:true,watermark:'RF',flightTag:'RF FLIGHT'},
+    azal:{code:'azal',name:'AZAL',sub:'AZERBAIJAN AIRLINES',miles:'AZAL MILES',initials:'AZ',logo:'https://upload.wikimedia.org/wikipedia/commons/4/4d/Azerbaijan_Airlines_logo.svg',title:'AZAL',theme:'azal',currency:'AZN',welcomeEyebrow:'AZERBAIJAN AIRLINES · PASSENGER PORTAL',welcomeCopy:'Личный кабинет пассажира Azerbaijan Airlines',milesDescription:'Отдельный баланс AZAL Miles и история операций программы лояльности.',serviceDescription:'Услуги и предложения Azerbaijan Airlines. Каталог AZAL не связан с Royal Flight.',serviceIntro:'Откройте возможности AZAL',roblox:false,watermark:'AZAL',flightTag:'AZAL FLIGHT'}
   };
+  const airline=()=>airlines[currentAirline]||airlines.royal;
   function applyAirline(key){
     const a=airlines[key]||airlines.royal;
+    currentAirline=a.code;
     document.body.classList.toggle('azal-theme',key==='azal');
     const logo=document.querySelector('.brand-logo');if(logo){logo.src=a.logo;logo.alt=a.title}
     const brand=document.querySelector('.brand-copy');if(brand){brand.querySelector('strong').textContent=a.name;brand.querySelector('small').textContent=a.sub}
     const pill=document.querySelector('.miles-card .pill');if(pill) pill.innerHTML='<span class="status-dot"></span> '+a.miles;
-    const home=document.querySelector('#page-home #welcomeName');
-    if(home&&!dashboard?.profile?.display_name)home.textContent='Ваша программа лояльности '+a.title;
-    document.querySelector('#page-flights .eyebrow').textContent=a.name;
-    document.querySelector('#page-profile .page-heading .muted').textContent='Ваш профиль в '+a.title+'.';
+    const watermark=document.querySelector('.miles-card .card-watermark');if(watermark)watermark.textContent=a.watermark;
+    const welcomeEyebrow=document.getElementById('welcomeEyebrow');if(welcomeEyebrow)welcomeEyebrow.textContent=a.welcomeEyebrow;
+    const home=document.querySelector('#page-home #welcomeName');if(home)home.textContent=a.welcomeCopy;
+    const milesDesc=document.getElementById('milesDescription');if(milesDesc)milesDesc.textContent=a.milesDescription;
+    const servicesDesc=document.getElementById('servicesDescription');if(servicesDesc)servicesDesc.textContent=a.serviceDescription;
+    const serviceIntro=document.getElementById('serviceIntroTitle');if(serviceIntro)serviceIntro.textContent=a.serviceIntro;
+    const flightEyebrow=document.querySelector('#page-flights .eyebrow');if(flightEyebrow)flightEyebrow.textContent=a.name;
+    const profileDesc=document.querySelector('#page-profile .page-heading .muted');if(profileDesc)profileDesc.textContent='Отдельный профиль участника '+a.title+'.';
+    const programLabel=document.getElementById('profileProgramLabel');if(programLabel)programLabel.textContent=a.title.toUpperCase();
+    const how=document.getElementById('milesHow');if(how)how.hidden=!a.roblox;
+    const robloxGroup=document.getElementById('robloxConnectionGroup');if(robloxGroup)robloxGroup.hidden=!a.roblox;
+    document.querySelectorAll('[data-royal-only]').forEach(el=>el.hidden=!a.roblox);
+    const adminPortal=document.getElementById('adminPortalName');if(adminPortal)adminPortal.textContent=a.title;
+    const currencyNote=document.getElementById('adminCurrencyNote');if(currencyNote)currencyNote.textContent='Валюта каталога: '+a.currency;
     const select=document.getElementById('airlineSwitcher');if(select)select.value=key;
     document.title=a.title+' — личный кабинет';
     try{localStorage.setItem('rf_selected_airline',key)}catch(_){}
   }
   const airlineSelect=document.getElementById('airlineSwitcher');
   const selectedAirline=(()=>{try{return localStorage.getItem('rf_selected_airline')||'royal'}catch(_){return 'royal'}})();
-  applyAirline(selectedAirline);
-  airlineSelect?.addEventListener('change',()=>{applyAirline(airlineSelect.value);notify('Выбрана авиакомпания: '+airlines[airlineSelect.value].title)});
+  currentAirline=airlines[selectedAirline]?selectedAirline:'royal';
+  applyAirline(currentAirline);
+  airlineSelect?.addEventListener('change',async()=>{
+    const next=airlines[airlineSelect.value]?airlineSelect.value:'royal';
+    if(next===currentAirline)return;
+    currentAirline=next;authGeneration++;dashboard=null;applyAirline(currentAirline);resetPortalData();
+    notify('Открываем отдельный портал '+airlines[currentAirline].title+'…');
+    await signIn();
+  });
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=v=>v?new Date(v).toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
   const money=(v,c='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:c,maximumFractionDigits:2}).format(Number(v||0));
@@ -97,11 +116,21 @@
     await signIn();
     if(button){button.disabled=false;button.textContent='Повторить'}
   });
+  function resetPortalData(){
+    for(const id of ['milesBalance','milesBalanceDetail']){const el=document.getElementById(id);if(el)el.textContent='—'}
+    for(const id of ['flightCatalog','serviceCatalog','ordersHistory','homeFlightPreview','announcementList','mileLedger','adminPayments','adminUsers']){
+      const el=document.getElementById(id);if(el)el.innerHTML='<div class="empty-state compact"><h3>Загружаем портал</h3><p>Получаем данные выбранной авиакомпании…</p></div>';
+    }
+    const name=document.getElementById('profileName');if(name)name.textContent='Загружаем профиль '+airline().title+'…';
+    const identity=document.getElementById('telegramIdentity');if(identity)identity.textContent='Проверяем отдельный профиль участника…';
+  }
   async function call(action,extra={}){
     if(!tg?.initData)throw new Error('Откройте приложение через Telegram.');
-    return functionRequest('rf-api',{initData:tg.initData,action,...extra});
+    return functionRequest('rf-api',{initData:tg.initData,airlineCode:currentAirline,action,...extra});
   }
   async function signIn(){
+    const portal=currentAirline;
+    const generation=++authGeneration;
     const identity=document.getElementById('telegramIdentity');
     if(!tg?.initData){
       if(identity)identity.textContent='Откройте Mini App через кнопку в Telegram-боте.';
@@ -111,37 +140,44 @@
     }
     if(identity)identity.textContent='Проверяем данные Telegram…';
     try{
-      const d=await functionRequest('telegram-auth',{initData:tg.initData});
+      const d=await functionRequest('telegram-auth',{initData:tg.initData,airlineCode:portal});
+      if(generation!==authGeneration||portal!==currentAirline)return;
       if(!d.profile)throw new Error(d.error||'Сервер не вернул профиль пользователя.');
-      const p=d.profile,name=p.display_name||'Пассажир Royal Flight';
+      const p=d.profile,name=p.display_name||('Пассажир '+airlines[portal].title);
       document.getElementById('profileName').textContent=name;
       document.getElementById('welcomeName').textContent=name+', добро пожаловать в '+(airlineSelect?.value==='azal'?'AZAL':'Royal Flight');
       document.getElementById('telegramIdentity').textContent=p.telegram_username?'@'+p.telegram_username:'Telegram ID: '+p.telegram_id;
       const initials=name.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'RF';
       const avatarInitials=document.getElementById('avatarInitials');if(avatarInitials)avatarInitials.textContent=initials;
       document.getElementById('profileAvatar').textContent=initials;
-      if(p.role==='admin'||p.role==='owner')document.getElementById('adminNav').hidden=false;
+      document.getElementById('adminNav').hidden=!(p.role==='admin'||p.role==='owner');
       hideConnectionBanner();
       await loadDashboard();
     }catch(e){
+      if(generation!==authGeneration||portal!==currentAirline)return;
       console.warn('Telegram authentication failed:',{message:e.message,status:e.status,code:e.payload?.error,kind:e.kind});
       if(identity)identity.textContent=explainApiError(e,'auth');
       showConnectionBanner('Не удалось войти',explainApiError(e,'auth'),true);
     }
   }
   async function loadDashboard(){
+    const portal=currentAirline;
     try{
-      dashboard=await call('dashboard');
+      const data=await call('dashboard');
+      if(portal!==currentAirline)return false;
+      dashboard=data;
       render(dashboard);
       hideConnectionBanner();
       return true;
     }catch(e){
+      if(portal!==currentAirline)return false;
       console.warn('Dashboard unavailable:',{message:e.message,status:e.status,code:e.payload?.error,kind:e.kind});
       showConnectionBanner('Профиль подтверждён, но данные не загружены',explainApiError(e,'dashboard'),true);
       return false;
     }
   }
   function render(d){
+    if(d.airlineCode&&d.airlineCode!==currentAirline)return;
     const p=d.profile||{},m=Number(p.miles||0).toLocaleString('ru-RU');
     document.getElementById('milesBalance').textContent=m;document.getElementById('milesBalanceDetail').textContent=m;
     document.getElementById('robloxStatus').textContent=p.roblox_username?'Roblox: '+p.roblox_username:'Roblox не привязан';
@@ -149,9 +185,9 @@
     const linkBtn=document.getElementById('robloxLinkButton');if(linkBtn){linkBtn.hidden=!!p.roblox_username;document.getElementById('robloxProfileState').textContent=p.roblox_username?'Привязан':'Не подключён';}
     const ledgerBox=document.getElementById('mileLedger');if(ledgerBox){const ledger=d.mileLedger||[];ledgerBox.innerHTML=ledger.length?'<div class="data-list">'+ledger.map(x=>'<article class="data-card ledger-card"><div><strong>'+esc(x.reason==='roblox_online_minutes'?'Время на сервере Roblox':x.reason)+'</strong><p class="muted">'+date(x.created_at)+'</p></div><strong class="ledger-delta">'+(Number(x.delta)>0?'+':'')+Number(x.delta).toLocaleString('ru-RU')+'</strong></article>').join('')+'</div>':'<div class="empty-state compact"><div class="empty-orbit">↻</div><h3>Операций пока нет</h3><p>Начисления и списания будут отображаться здесь.</p></div>'}
     const fc=document.getElementById('flightCatalog');
-    if(fc){fc.innerHTML=d.flights?.length?'<div class="data-list">'+d.flights.map(f=>'<article class="data-card"><div class="data-card-top"><span class="flight-tag">'+esc(f.flight_number||'RF FLIGHT')+'</span><span class="muted">'+esc(date(f.departure_at))+'</span></div><h3>'+esc(f.title)+'</h3><div class="route-line"><strong>'+esc(f.origin)+'</strong><span>✈ ─── ✈</span><strong>'+esc(f.destination)+'</strong></div><p class="muted">'+esc(f.aircraft||'Самолёт уточняется')+'</p>'+(f.description?'<p class="data-description">'+esc(f.description)+'</p>':'')+'</article>').join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">✈</div><h3>Расписание готовится</h3><p>Когда администрация опубликует рейсы, они появятся здесь.</p></div>'}
+    if(fc){fc.innerHTML=d.flights?.length?'<div class="data-list">'+d.flights.map(f=>'<article class="data-card"><div class="data-card-top"><span class="flight-tag">'+esc(f.flight_number||airline().flightTag)+'</span><span class="muted">'+esc(date(f.departure_at))+'</span></div><h3>'+esc(f.title)+'</h3><div class="route-line"><strong>'+esc(f.origin)+'</strong><span>✈ ─── ✈</span><strong>'+esc(f.destination)+'</strong></div><p class="muted">'+esc(f.aircraft||'Самолёт уточняется')+'</p>'+(f.description?'<p class="data-description">'+esc(f.description)+'</p>':'')+'</article>').join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">✈</div><h3>Расписание готовится</h3><p>Когда администрация опубликует рейсы, они появятся здесь.</p></div>'}
     const sc=document.getElementById('serviceCatalog');
-    if(sc){sc.innerHTML=d.services?.length?'<div class="service-list">'+d.services.map(s=>'<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||'Временная привилегия Royal Flight.')+'</p><div class="service-buy-row"><strong>'+money(s.price,s.currency)+'</strong><button class="primary-button" data-buy="'+esc(s.id)+'">Оформить</button></div></article>').join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог скоро откроется</h3><p>Все услуги будут доступны в одном месте с историей заказов и продлением доступа.</p></div>';sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)))}
+    if(sc){sc.innerHTML=d.services?.length?'<div class="service-list">'+d.services.map(s=>'<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||airline().serviceDescription)+'</p><div class="service-buy-row"><strong>'+money(s.price,s.currency)+'</strong><button class="primary-button" data-buy="'+esc(s.id)+'">Оформить</button></div></article>').join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог скоро откроется</h3><p>Все услуги будут доступны в одном месте с историей заказов и продлением доступа.</p></div>';sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)))}
     const oh=document.getElementById('ordersHistory');
     if(oh){const orders=d.orders||[];oh.innerHTML='<h2 class="subheading orders-heading">Мои заказы</h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>{const labels={awaiting_payment:'Ожидает оплаты',awaiting_review:'На проверке',paid:'Оплачен',rejected:'Отклонён',cancelled:'Отменён'};return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-'+esc(o.status)+'">'+esc(labels[o.status]||o.status)+'</span></div><p class="muted">'+money(o.amount,o.currency)+' · '+date(o.created_at)+'</p>'+(o.admin_note?'<p class="data-description">'+esc(o.admin_note)+'</p>':'')+(o.status==='awaiting_payment'?'<div class="button-row"><button class="secondary-button" data-show-payment="'+esc(o.id)+'">Реквизиты</button><button class="primary-button" data-mark-paid="'+esc(o.id)+'">Я оплатил</button></div>':'')+'</article>'}).join('')+'</div>':'<div class="empty-card"><span class="empty-icon">▣</span><div><strong>Заказов пока нет</strong><p>Оформленные услуги появятся здесь.</p></div></div>');oh.querySelectorAll('[data-mark-paid]').forEach(b=>b.addEventListener('click',()=>markPaid(b.dataset.markPaid)));oh.querySelectorAll('[data-show-payment]').forEach(b=>b.addEventListener('click',()=>showPayment(b.dataset.showPayment)))}
     const homeFlight=document.getElementById('homeFlightPreview');
@@ -250,12 +286,12 @@
     if(section==='payments'){openPage('admin');document.getElementById('adminPayments')?.scrollIntoView({behavior:'smooth'});return}
     if(section==='users'){openPage('admin');document.getElementById('adminUsers')?.scrollIntoView({behavior:'smooth'});return}
     if(section==='flights'){
-      showAdminForm({title:'Новый рейс',subtitle:'Заполните данные нового рейса в расписании.',fields:[
+      showAdminForm({title:'Новый рейс',subtitle:'Добавьте рейс в отдельное расписание '+airline().title+'.',fields:[
         {name:'title',label:'Название рейса',required:true,placeholder:'Например, Москва — Анталья'},
         {name:'origin',label:'Город вылета',required:true,placeholder:'Москва'},
         {name:'destination',label:'Город прилёта',required:true,placeholder:'Анталья'},
         {name:'departureAt',label:'Дата и время вылета',type:'datetime-local',required:true},
-        {name:'flightNumber',label:'Номер рейса',value:'RF001'},
+        {name:'flightNumber',label:'Номер рейса',value:currentAirline==='azal'?'J2 001':'RF001'},
         {name:'aircraft',label:'Самолёт',value:'Boeing 737-800'},
         {name:'capacity',label:'Количество мест',type:'number',placeholder:'Например, 189'}
       ],submitLabel:'Создать рейс',onSubmit:async v=>{
@@ -265,7 +301,7 @@
       }});return;
     }
     if(section==='services'){
-      showAdminForm({title:'Новая услуга',subtitle:'Добавьте привилегию в каталог пассажиров.',fields:[
+      showAdminForm({title:'Новая услуга',subtitle:'Добавьте услугу только в каталог '+airline().title+'.',fields:[
         {name:'code',label:'Код услуги',required:true,placeholder:'BUSINESS'},
         {name:'name',label:'Название услуги',required:true,placeholder:'Business Class'},
         {name:'price',label:'Стоимость',type:'number',value:'300',required:true},
@@ -273,7 +309,7 @@
         {name:'description',label:'Описание',type:'textarea',rows:3,placeholder:'Краткое описание привилегии'}
       ],submitLabel:'Добавить услугу',onSubmit:async v=>{
         if(!v.code||!v.name||!v.price||!v.durationDays){notify('Заполните обязательные поля');return false}
-        await call('admin_save_service',{service:{code:v.code,name:v.name,price:Number(v.price),durationDays:Number(v.durationDays),description:v.description,currency:'RUB'}});
+        await call('admin_save_service',{service:{code:v.code,name:v.name,price:Number(v.price),durationDays:Number(v.durationDays),description:v.description,currency:airline().currency}});
         notify('Услуга добавлена');await loadDashboard();return true;
       }});return;
     }
@@ -290,12 +326,13 @@
       }});return;
     }
     if(section==='settings'){
+      if(currentAirline==='azal'){notify('Настройки Roblox доступны только в портале Royal Flight.');return}
       showModal({title:'Настройки клуба',subtitle:'Выберите параметр, который нужно изменить.',content:'<div class="settings-action-list"><button class="settings-action" data-setting="rate"><span class="settings-action-icon">✦</span><span><strong>Начисление миль</strong><small>Мили за минуту на сервере</small></span><b>›</b></button><button class="settings-action" data-setting="payment"><span class="settings-action-icon">▤</span><span><strong>Способ оплаты</strong><small>Добавить платёжные реквизиты</small></span><b>›</b></button><button class="settings-action" data-setting="places"><span class="settings-action-icon">⌖</span><span><strong>Серверы Roblox</strong><small>Разрешённые Place ID</small></span><b>›</b></button></div>',actions:[{label:'Закрыть',onClick:closeModal}]});
       modalRoot.querySelector('[data-setting="rate"]')?.addEventListener('click',()=>{
         closeModal();showAdminForm({title:'Начисление миль',subtitle:'Установите количество миль за минуту на сервере.',fields:[{name:'rate',label:'Миль за минуту',type:'number',value:'10',required:true}],submitLabel:'Сохранить',onSubmit:async v=>{const rate=Number(v.rate);if(!Number.isInteger(rate)||rate<0||rate>10000){notify('Укажите целое число от 0 до 10000');return false}await call('admin_set_miles_rate',{milesPerMinute:rate});notify('Ставка обновлена');return true}});
       });
       modalRoot.querySelector('[data-setting="payment"]')?.addEventListener('click',()=>{
-        closeModal();showAdminForm({title:'Реквизиты оплаты',subtitle:'Добавьте способ оплаты для оформления услуг.',fields:[
+        closeModal();showAdminForm({title:'Реквизиты оплаты',subtitle:'Добавьте реквизиты только для заказов '+airline().title+'.',fields:[
           {name:'label',label:'Название способа',required:true,placeholder:'Перевод на карту'},
           {name:'cardNumber',label:'Номер карты или счёта',required:true,placeholder:'Номер для оплаты'},
           {name:'recipientName',label:'Получатель',placeholder:'Имя получателя'},
