@@ -44,6 +44,7 @@
   const selectedAirline=(()=>{try{return localStorage.getItem('rf_selected_airline')||'royal'}catch(_){return 'royal'}})();
   currentAirline=airlines[selectedAirline]?selectedAirline:'royal';
   applyAirline(currentAirline);
+  document.title='Royal Alliance — выбор портала';
   async function enterPortal(key){
     const next=airlines[key]?key:'royal';
     currentAirline=next;
