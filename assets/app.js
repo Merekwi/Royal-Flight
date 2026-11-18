@@ -2,7 +2,7 @@
   const tg=window.Telegram?.WebApp;
   if(tg){tg.ready();tg.expand();try{tg.setHeaderColor('#07111f');tg.setBackgroundColor('#07111f')}catch(_){}}
   const pages=[...document.querySelectorAll('.page')], nav=[...document.querySelectorAll('.nav-item')], toast=document.getElementById('toast');
-  let timer=null, dashboard=null, currentAirline='royal', authGeneration=0;
+  let timer=null, dashboard=null, currentAirline='royal', authGeneration=0, robloxWarningShown=false;
   const URL='https://iotwbzzlwltjfddrmhvg.supabase.co';
   const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvdHdienpsd2x0amZkZHJtaHZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5NTEwNDksImV4cCI6MjEwODUyNzA0OX0.Bg-ww-s0WVpVwuJymjREB3z6eeY0S_8ZfFE5tnqUYz0';
   function notify(s){toast.textContent=s;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2800);if(tg?.HapticFeedback)tg.HapticFeedback.impactOccurred('light')}
@@ -174,6 +174,19 @@
       showConnectionBanner('Не удалось войти',explainApiError(e,'auth'),true);
     }
   }
+  function showRobloxMileageWarning(){
+    if(robloxWarningShown)return;
+    robloxWarningShown=true;
+    showModal({
+      title:'Мили не будут начисляться',
+      subtitle:'Не подключён аккаунт Roblox',
+      content:'<div class="empty-card"><strong>Ваш профиль Telegram ещё не связан с Roblox.</strong><p>Пока вы не привяжете Roblox-аккаунт через игру Royal Flight, система не сможет распознать вас на сервере. Мили за проведённое в игре время начисляться не будут.</p></div><p class="modal-hint">Подключение: откройте профиль, получите одноразовый код и введите его в окне Royal Flight внутри Roblox. Пароль Roblox не нужен.</p>',
+      actions:[
+        {label:'Напомнить позже',onClick:closeModal},
+        {label:'Перейти к подключению',primary:true,onClick:()=>{closeModal();openPage('profile');document.getElementById('robloxLinkButton')?.scrollIntoView({behavior:'smooth',block:'center'})}}
+      ]
+    });
+  }
   async function loadDashboard(){
     const portal=currentAirline;
     try{
@@ -182,6 +195,7 @@
       dashboard=data;
       render(dashboard);
       hideConnectionBanner();
+      if(!robloxWarningShown&&!String(data.profile?.roblox_username||'').trim())showRobloxMileageWarning();
       return true;
     }catch(e){
       if(portal!==currentAirline)return false;
