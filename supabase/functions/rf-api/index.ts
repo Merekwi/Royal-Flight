@@ -57,11 +57,11 @@ Deno.serve(async (req) => {
     const ownerValue = ownerSetting.data?.value;
     const isConfiguredOwner = ownerValue !== null && ownerValue !== undefined && String(ownerValue).replace(/^"|"$/g,"") === telegram.id;
     const { data: profile, error: profileError } = await db.from("rf_profiles").upsert({
-      telegram_id: telegram.id, airline_code: airlineCode, telegram_username: telegram.username,
+      telegram_id: telegram.id, telegram_username: telegram.username,
       display_name: telegram.name || null, updated_at: new Date().toISOString(),
       ...(isConfiguredOwner ? { role: "owner" } : {})
-    }, { onConflict: "telegram_id,airline_code" })
-      .select("id,telegram_id,airline_code,telegram_username,display_name,role,miles,roblox_username").single();
+    }, { onConflict: "telegram_id" })
+      .select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").single();
     if (profileError || !profile) {
       console.error("profile_upsert_failed", profileError?.message || "profile row missing");
       return json({ error: "profile_unavailable", message: "База данных не смогла сохранить профиль Telegram." }, 503);
@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
       if (admin) {
         const [pending, users] = await Promise.all([
           db.from("rf_orders").select("id,order_number,profile_id,service_id,amount,currency,status,proof_url,user_note,created_at").eq("airline_code", airlineCode).eq("status","awaiting_review").order("created_at"),
-          db.from("rf_profiles").select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").eq("airline_code", airlineCode).order("created_at",{ascending:false}).limit(100)
+          db.from("rf_profiles").select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").order("created_at",{ascending:false}).limit(100)
         ]);
         if (!pending.error) pendingOrders = pending.data || [];
         if (!users.error) adminUsers = users.data || [];
@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
       if (!updated.data) return json({ error: "order_not_found_or_not_payable" }, 409);
       if (botToken) {
         const [admins, fullOrder] = await Promise.all([
-          db.from("rf_profiles").select("telegram_id").eq("airline_code", airlineCode).in("role", ["admin","owner"]),
+          db.from("rf_profiles").select("telegram_id").in("role", ["admin","owner"]),
           db.from("rf_orders").select("order_number,amount,currency").eq("id", updated.data.id).eq("airline_code", airlineCode).single()
         ]);
         const orderInfo = fullOrder.data;
@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
       const hasRole=role==="member"||role==="admin";
       if(hasRole&&profile.role!=="owner")return json({error:"owner_required_to_change_roles"},403);
       if(userId===profile.id&&role==="member"&&profile.role==="owner")return json({error:"cannot_remove_own_owner_role"},409);
-      const target=await db.from("rf_profiles").select("id,telegram_id,role,miles").eq("id",userId).eq("airline_code", airlineCode).maybeSingle();
+      const target=await db.from("rf_profiles").select("id,telegram_id,role,miles").eq("id",userId).maybeSingle();
       if(!target.data)return json({error:"user_not_found"},404);
       const patch:Record<string,unknown>={updated_at:new Date().toISOString()};
       if(hasRole)patch.role=role;
@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
         if(!Number.isInteger(delta)||Math.abs(delta)>1000000||target.data.miles+delta<0)return json({error:"invalid_miles_adjustment"},400);
         if(delta!==0)patch.miles=target.data.miles+delta;
       }
-      const saved=await db.from("rf_profiles").update(patch).eq("id",userId).eq("airline_code", airlineCode).select("id,telegram_id,role,miles,display_name,telegram_username,roblox_username").single();
+      const saved=await db.from("rf_profiles").update(patch).eq("id",userId).select("id,telegram_id,role,miles,display_name,telegram_username,roblox_username").single();
       if(saved.error)return json({error:"user_update_failed"},500);
       if(delta!==0)await db.from("rf_mile_ledger").insert({profile_id:userId,delta,reason:"admin_adjustment",metadata:{admin_telegram_id:telegram.id}});
       await db.from("rf_admin_audit").insert({airline_code:airlineCode,admin_telegram_id:telegram.id,action:"user_updated",entity_type:"profile",entity_id:userId,details:{role:hasRole?role:target.data.role,milesDelta:delta}});
@@ -251,7 +251,7 @@ Deno.serve(async (req) => {
       if(result.error)return json({error:"notification_save_failed"},500);
       let delivery={sent:0,failed:0};
       if(!scheduledAt){
-        const targets=await db.from("rf_profiles").select("telegram_id,role,roblox_user_id,id").eq("airline_code", airlineCode);
+        const targets=await db.from("rf_profiles").select("telegram_id,role,roblox_user_id,id");
         if(targets.error)return json({error:"notification_targets_failed"},500);
         let selected=targets.data||[];
         if(audience==="admins")selected=selected.filter(x=>x.role==="admin"||x.role==="owner");
