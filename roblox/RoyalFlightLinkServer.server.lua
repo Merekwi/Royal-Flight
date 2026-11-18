@@ -1,4 +1,4 @@
--- Royal Flight | ServerScriptService/RoyalFlightLinkServer.server.lua
+-- Royal Alliance Lobby | ServerScriptService/RoyalFlightLinkServer.server.lua
 -- Enable Game Settings > Security > Allow HTTP Requests.
 -- Set the same long random secret in this script and Supabase Edge Function secret ROBLOX_SERVER_SECRET.
 local Players = game:GetService("Players")
@@ -29,8 +29,8 @@ local function apiRequest(payload)
         })
     end)
     if not ok or not response.Success then
-        warn("[Royal Flight] API request failed", ok and response.StatusCode or response)
-        return false, "Не удалось связаться с Royal Flight. Попробуйте позже."
+        warn("[Royal Alliance] API request failed", ok and response.StatusCode or response)
+        return false, "Не удалось связаться с Royal Alliance. Попробуйте позже."
     end
     local decodedOk, data = pcall(function() return HttpService:JSONDecode(response.Body) end)
     if not decodedOk then return false, "Сервер вернул неверный ответ." end
@@ -38,7 +38,7 @@ local function apiRequest(payload)
         local messages = {
             link_code_expired = "Код истёк или неверен. Получите новый код в Telegram.",
             roblox_account_already_linked = "Этот Roblox-аккаунт уже привязан к другому профилю.",
-            place_not_allowed = "Эта игра ещё не подключена к системе Royal Flight."
+            place_not_allowed = "Это лобби ещё не подключено к системе Royal Alliance."
         }
         return false, messages[data.error] or "Не удалось выполнить действие."
     end
@@ -58,7 +58,7 @@ remote.OnServerInvoke = function(player, code)
         jobId = JOB_ID
     })
     if not ok then return { ok = false, message = result } end
-    return { ok = true, message = "Roblox успешно привязан к Royal Flight!" }
+    return { ok = true, message = "Roblox успешно привязан к Royal Alliance!" }
 end
 
 local function apiRequestBatch(players)
@@ -82,7 +82,7 @@ local function apiRequestBatch(players)
         })
     end)
     if not ok or not response.Success then
-        warn("[Royal Flight] Mileage batch failed", ok and response.StatusCode or response)
+        warn("[Royal Alliance] Mileage batch failed", ok and response.StatusCode or response)
     end
 end
 
