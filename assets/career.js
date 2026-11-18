@@ -20,7 +20,20 @@ function conditionMatches(rule,answers){
  const matched=Array.isArray(value)?value.map(String).includes(String(rule.value)):String(value??'')===String(rule.value);
  return rule.operator==='not_equals'?!matched:matched;
 }
+function pruneHiddenAnswers(form,answers){
+ const schema=schemaOf(form),visible=new Set(),known=new Set();
+ schema.sections.forEach(section=>{
+  const sectionVisible=conditionMatches(section.visibleWhen,answers);
+  (section.fields||[]).forEach(field=>{
+   known.add(field.id);
+   if(sectionVisible&&conditionMatches(field.visibleWhen,answers))visible.add(field.id);
+   else delete answers[field.id];
+  });
+ });
+ Object.keys(answers).forEach(id=>{if(!known.has(id)||!visible.has(id))delete answers[id]});
+}
 function visibleItems(form,answers){
+ pruneHiddenAnswers(form,answers);
  const out=[];schemaOf(form).sections.forEach(section=>{
   if(!conditionMatches(section.visibleWhen,answers))return;
   out.push({section});
@@ -81,11 +94,33 @@ function openApplicantForm(form){
   const ids=new Set(Array.from(root.querySelectorAll('[data-multi]')).map(x=>x.dataset.multi));
   ids.forEach(k=>{ans[k]=Array.from(root.querySelectorAll('[data-multi="'+k+'"]:checked')).map(x=>x.value)});
  }
- function redraw(){
-  const host=$('careerQuestions');host.innerHTML=visibleItems(form,ans).map(x=>x.section?
+ function redraw(restore=null){
+  const host=$('careerQuestions');
+  const active=restore||document.activeElement;
+  const answerId=active?.dataset?.answer||'';
+  const multiId=active?.dataset?.multi||'';
+  const multiValue=active?.value||'';
+  const selectionStart=typeof active?.selectionStart==='number'?active.selectionStart:null;
+  const selectionEnd=typeof active?.selectionEnd==='number'?active.selectionEnd:null;
+  sync();
+  pruneHiddenAnswers(form,ans);
+  host.innerHTML=visibleItems(form,ans).map(x=>x.section?
    '<div class="career-form-section"><h3>'+esc(x.section.title)+'</h3>'+(x.section.description?'<p>'+esc(x.section.description)+'</p>':'')+'</div>'
    :renderQuestion(x.field,ans)).join('');
-  host.querySelectorAll('input,textarea,select').forEach(el=>{el.addEventListener('input',()=>{sync();redraw()});el.addEventListener('change',()=>{sync();redraw()})});
+  host.querySelectorAll('input,textarea,select').forEach(el=>{
+   const rerender=()=>{sync();redraw(el)};
+   if(el.matches('select,input[type="checkbox"]'))el.addEventListener('change',rerender);
+   else el.addEventListener('input',rerender);
+  });
+  let next=null;
+  if(answerId)next=host.querySelector('[data-answer="'+answerId+'"]');
+  else if(multiId)next=Array.from(host.querySelectorAll('[data-multi="'+multiId+'"]')).find(x=>x.value===multiValue);
+  if(next){
+   next.focus();
+   if(selectionStart!==null&&typeof next.setSelectionRange==='function'){
+    try{next.setSelectionRange(selectionStart,selectionEnd)}catch(_){}
+   }
+  }
  }
  redraw();
 }
@@ -155,14 +190,42 @@ function newForm(){
 function editForm(f){if(!f)return;builder=JSON.parse(JSON.stringify(f));builder.schema=builder.schema||{sections:[]};showBuilder()}
 function localInput(v){if(!v)return '';const d=new Date(v),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes())}
 function syncMeta(){document.querySelectorAll('[data-meta]').forEach(x=>builder[x.dataset.meta]=x.value)}
+function conditionOperatorHtml(field,selected){
+ const multi=field?.type==='multiselect';
+ return '<option value="equals"'+(selected!=='not_equals'?' selected':'')+'>'+(multi?'Содержит':'Равно')+'</option><option value="not_equals"'+(selected==='not_equals'?' selected':'')+'>'+(multi?'Не содержит':'Не равно')+'</option>';
+}
+function conditionValueHtml(field,value,prefix){
+ if(!field)return '<input class="modal-input" id="'+prefix+'Value" value="'+esc(value||'')+'" placeholder="Сначала выберите вопрос" disabled>';
+ let options=null;
+ if(field.type==='yesno')options=[{value:'yes',label:'Да'},{value:'no',label:'Нет'}];
+ else if(['select','multiselect'].includes(field.type))options=(field.options||[]).map(x=>({value:x,label:x}));
+ if(options){
+  const selected=options.some(x=>x.value===value)?value:(options[0]?.value||'');
+  return '<select class="modal-input" id="'+prefix+'Value">'+options.map(x=>'<option value="'+esc(x.value)+'"'+(selected===x.value?' selected':'')+'>'+esc(x.label)+'</option>').join('')+'</select>';
+ }
+ const inputType=field.type==='number'?'number':field.type==='date'?'date':'text';
+ return '<input class="modal-input" id="'+prefix+'Value" type="'+inputType+'" value="'+esc(value||'')+'" placeholder="Точное значение ответа">';
+}
 function logicHtml(fields,rule,prefix){
+ const selectedField=fields.find(f=>f.id===rule?.fieldId)||null;
  const opts='<option value="">Показывать всегда</option>'+fields.map(f=>'<option value="'+esc(f.id)+'"'+(rule?.fieldId===f.id?' selected':'')+'>'+esc(f.label)+'</option>').join('');
- return '<div class="career-builder-logic"><strong>УСЛОВИЕ ОТОБРАЖЕНИЯ</strong><div class="career-builder-logic-grid"><select id="'+prefix+'Source" '+(!fields.length?'disabled':'')+'>'+opts+'</select><select id="'+prefix+'Operator"><option value="equals"'+(rule?.operator!=='not_equals'?' selected':'')+'>Равно</option><option value="not_equals"'+(rule?.operator==='not_equals'?' selected':'')+'>Не равно</option></select><input id="'+prefix+'Value" value="'+esc(rule?.value||'')+'" placeholder="Значение ответа"></div><small class="muted">'+(fields.length?'Например: «Есть опыт?» равно «Да».':'Чтобы добавить логику, сначала создайте вопрос выше.')+'</small></div>';
+ return '<div class="career-builder-logic"><strong>УСЛОВИЕ ОТОБРАЖЕНИЯ</strong><div class="career-builder-logic-grid"><select id="'+prefix+'Source" '+(!fields.length?'disabled':'')+'>'+opts+'</select><select id="'+prefix+'Operator">'+conditionOperatorHtml(selectedField,rule?.operator)+'</select><div id="'+prefix+'ValueWrap">'+conditionValueHtml(selectedField,rule?.value,prefix)+'</div></div><small class="muted">'+(fields.length?'Для вопросов с вариантами ответов значение можно выбрать из списка.':'Чтобы добавить логику, сначала создайте вопрос выше.')+'</small></div>';
+}
+function wireLogic(prefix,fields){
+ const source=$(prefix+'Source'),operator=$(prefix+'Operator'),wrap=$(prefix+'ValueWrap');
+ if(!source||!operator||!wrap)return;
+ source.addEventListener('change',()=>{
+  const field=fields.find(x=>x.id===source.value)||null;
+  const previous=$ (prefix+'Value');
+  const previousValue=previous?.value||'';
+  operator.innerHTML=conditionOperatorHtml(field,'equals');
+  wrap.innerHTML=conditionValueHtml(field,previousValue,prefix);
+ });
 }
 function readLogic(prefix){
  const source=$(prefix+'Source')?.value||'',value=$(prefix+'Value')?.value||'';
- if(!source)return null;if(!value.trim())throw new Error('Укажите ответ, который включает этот блок.');
- return {fieldId:source,operator:$(prefix+'Operator').value,value:value.trim()};
+ if(!source)return null;if(!String(value).trim())throw new Error('Укажите ответ, который включает этот блок.');
+ return {fieldId:source,operator:$(prefix+'Operator').value,value:String(value).trim()};
 }
 function builderHtml(){
  return '<div class="career-builder"><div class="career-builder-meta"><div class="modal-field career-builder-wide"><label class="modal-field-label">Название набора</label><input class="modal-input" data-meta="title" maxlength="120" value="'+esc(builder.title)+'"></div><div class="modal-field"><label class="modal-field-label">Подразделение / должность</label><input class="modal-input" data-meta="department" maxlength="100" value="'+esc(builder.department)+'"></div><div class="modal-field"><label class="modal-field-label">Окончание приёма</label><input class="modal-input" data-meta="closes_at" type="datetime-local" value="'+esc(localInput(builder.closes_at))+'"></div><div class="modal-field career-builder-wide"><label class="modal-field-label">Описание для кандидатов</label><textarea class="modal-textarea" data-meta="description" rows="3" maxlength="2500">'+esc(builder.description)+'</textarea></div></div><div><p class="eyebrow">FORM STRUCTURE</p><h3 class="subheading">Разделы и вопросы</h3><p class="muted">Разделы объединяют вопросы в смысловые блоки. Раздел или отдельный вопрос можно показывать только при определённом ответе.</p></div>'+
@@ -199,6 +262,7 @@ function editSection(i){
  api().showModal({title:'Настройка раздела',subtitle:'Раздел анкеты',content:'<div class="career-builder"><div class="modal-field"><label class="modal-field-label">Название раздела</label><input class="modal-input" id="csTitle" maxlength="100" value="'+esc(s.title)+'"></div><div class="modal-field"><label class="modal-field-label">Описание / инструкция</label><textarea class="modal-textarea" id="csDescription" rows="3">'+esc(s.description||'')+'</textarea></div>'+logicHtml(beforeSections(i),s.visibleWhen,'cs')+'</div>',actions:[
   {label:'Назад',onClick:showBuilder},{label:'Сохранить раздел',primary:true,onClick:()=>{try{const title=$('csTitle').value.trim();if(!title)throw new Error('Укажите название раздела.');s.title=title;s.description=$('csDescription').value.trim();s.visibleWhen=readLogic('cs');api().closeModal();showBuilder()}catch(e){api().notify(e.message)}}}
  ]});
+ wireLogic('cs',beforeSections(i));
 }
 function editQuestion(si,fi){
  const section=builder.schema.sections[si],old=fi>=0?section.fields[fi]:null;
@@ -212,6 +276,7 @@ function editQuestion(si,fi){
    try{f.label=label;f.type=type;f.required=$('qRequired').value==='true';f.placeholder=$('qPlaceholder').value.trim();f.options=opts;f.visibleWhen=readLogic('qLogic');if(old)section.fields[fi]=f;else section.fields.push(f);api().closeModal();showBuilder()}catch(e){api().notify(e.message)}
   }}
  ]});
+ wireLogic('qLogic',beforeFields(si,fi));
  const type=$('qType'),wrap=$('qOptionsWrap');const toggle=()=>wrap.hidden=!['select','multiselect'].includes(type.value);type.addEventListener('change',toggle);toggle();
 }
 document.querySelectorAll('[data-career-admin]').forEach(b=>b.addEventListener('click',()=>{api().openPage('admin');setTimeout(()=>$('adminCareer')?.scrollIntoView({behavior:'smooth',block:'start'}),80)}));
