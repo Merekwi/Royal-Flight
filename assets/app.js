@@ -70,6 +70,8 @@
     if(sc){sc.innerHTML=d.services?.length?'<div class="service-list">'+d.services.map(s=>'<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||'Временная привилегия Royal Flight.')+'</p><div class="service-buy-row"><strong>'+money(s.price,s.currency)+'</strong><button class="primary-button" data-buy="'+esc(s.id)+'">Оформить</button></div></article>').join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог скоро откроется</h3><p>Все услуги будут доступны в одном месте с историей заказов и продлением доступа.</p></div>';sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)))}
     const oh=document.getElementById('ordersHistory');
     if(oh){const orders=d.orders||[];oh.innerHTML='<h2 class="subheading orders-heading">Мои заказы</h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>{const labels={awaiting_payment:'Ожидает оплаты',awaiting_review:'На проверке',paid:'Оплачен',rejected:'Отклонён',cancelled:'Отменён'};return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-'+esc(o.status)+'">'+esc(labels[o.status]||o.status)+'</span></div><p class="muted">'+money(o.amount,o.currency)+' · '+date(o.created_at)+'</p>'+(o.admin_note?'<p class="data-description">'+esc(o.admin_note)+'</p>':'')+(o.status==='awaiting_payment'?'<div class="button-row"><button class="secondary-button" data-show-payment="'+esc(o.id)+'">Реквизиты</button><button class="primary-button" data-mark-paid="'+esc(o.id)+'">Я оплатил</button></div>':'')+'</article>'}).join('')+'</div>':'<div class="empty-card"><span class="empty-icon">▣</span><div><strong>Заказов пока нет</strong><p>Оформленные услуги появятся здесь.</p></div></div>');oh.querySelectorAll('[data-mark-paid]').forEach(b=>b.addEventListener('click',()=>markPaid(b.dataset.markPaid)));oh.querySelectorAll('[data-show-payment]').forEach(b=>b.addEventListener('click',()=>showPayment(b.dataset.showPayment)))}
+    const homeFlight=document.getElementById('homeFlightPreview');
+    if(homeFlight){const next=(d.flights||[])[0];homeFlight.innerHTML=next?'<article class="home-flight-card"><div class="home-flight-top"><span class="flight-tag">'+esc(next.flight_number||'UPCOMING FLIGHT')+'</span><span class="muted">'+esc(date(next.departure_at))+'</span></div><div class="home-route"><div><strong>'+esc(next.origin)+'</strong><small>ОТПРАВЛЕНИЕ</small></div><span class="home-route-plane">✈</span><div><strong>'+esc(next.destination)+'</strong><small>ПРИБЫТИЕ</small></div></div><div class="home-flight-bottom"><span>'+esc(next.aircraft||'Самолёт уточняется')+'</span><button class="text-link" data-page="flights">Все рейсы&nbsp; ↗</button></div></article>':'<div class="home-flight-empty"><span class="home-flight-empty-icon">✈</span><div><strong>Пока нет запланированных рейсов</strong><p>Новые вылеты появятся здесь после публикации расписания.</p></div><button class="text-link" data-page="flights">Расписание&nbsp; ↗</button></div>';homeFlight.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>openPage(b.dataset.page)))}
     const announcement=document.getElementById('announcementList');
     if(announcement){const news=d.announcements||[];announcement.innerHTML=news.length?'<div class="data-list">'+news.map(n=>'<article class="data-card announcement-card"><div class="data-card-top"><span class="flight-tag">НОВОСТИ</span><span class="muted">'+date(n.sent_at||n.created_at)+'</span></div><h3>'+esc(n.title)+'</h3><p class="data-description">'+esc(n.body)+'</p></article>').join('')+'</div>':'<div class="empty-card"><span class="empty-icon">◌</span><div><strong>Пока нет объявлений</strong><p>Здесь появятся новости и уведомления авиакомпании.</p></div></div>'}
     if(d.admin&&(p.role==='admin'||p.role==='owner'))renderAdmin(d.admin);
@@ -134,19 +136,92 @@
       const users=a.users||[];const isOwner=dashboard?.profile?.role==='owner';
       usersBox.innerHTML='<h2 class="subheading orders-heading">Участники <span class="count-badge">'+users.length+'</span></h2>'+(users.length?'<div class="data-list">'+users.map(u=>'<article class="data-card user-card"><div class="data-card-top"><strong>'+esc(u.display_name||u.telegram_username||('ID '+u.telegram_id))+'</strong><span class="order-status">'+esc(u.role)+'</span></div><p class="muted">'+(u.telegram_username?'@'+esc(u.telegram_username)+' · ':'')+'Telegram ID: '+esc(u.telegram_id)+'</p><p class="data-description">'+(u.roblox_username?'Roblox: '+esc(u.roblox_username)+' · ':'')+'Баланс: '+Number(u.miles||0).toLocaleString('ru-RU')+' миль</p><div class="button-row">'+(isOwner&&u.role!=='owner'?'<button class="secondary-button" data-role-user="'+esc(u.id)+'" data-role="'+(u.role==='admin'?'member':'admin')+'">'+(u.role==='admin'?'Снять админа':'Назначить админом')+'</button>':'')+'<button class="secondary-button" data-miles-user="'+esc(u.id)+'">Изменить мили</button></div></article>').join('')+'</div>':'<div class="empty-card"><strong>Участников пока нет</strong><p>Профили появятся после первого запуска Mini App.</p></div>');
       usersBox.querySelectorAll('[data-role-user]').forEach(b=>b.addEventListener('click',async()=>{try{await call('admin_manage_user',{profileId:b.dataset.roleUser,role:b.dataset.role});notify('Роль участника обновлена.');await loadDashboard()}catch(e){notify(e.message)}}));
-      usersBox.querySelectorAll('[data-miles-user]').forEach(b=>b.addEventListener('click',async()=>{const amount=prompt('Изменение баланса в милях. Для списания используй минус:','100');if(amount===null)return;try{await call('admin_manage_user',{profileId:b.dataset.milesUser,milesDelta:Number(amount)});notify('Баланс обновлён.');await loadDashboard()}catch(e){notify(e.message)}}));
+      usersBox.querySelectorAll('[data-miles-user]').forEach(b=>b.addEventListener('click',()=>showAdminForm({title:'Изменить баланс',subtitle:'Укажите количество миль. Для списания используйте отрицательное число.',fields:[{name:'milesDelta',label:'Изменение баланса',type:'number',value:'100',required:true}],submitLabel:'Сохранить',onSubmit:async values=>{const delta=Number(values.milesDelta);if(!Number.isInteger(delta)){notify('Введите целое число');return false}await call('admin_manage_user',{profileId:b.dataset.milesUser,milesDelta:delta});notify('Баланс обновлён.');await loadDashboard();return true}})));
     }
   }
-  async function review(id,paid){const note=prompt(paid?'Комментарий к подтверждению (необязательно):':'Причина отказа (обязательно):','');if(note===null)return;if(!paid&&!note.trim()){notify('Укажи причину отказа.');return}try{await call('admin_review_order',{orderId:id,paid,note});notify(paid?'Оплата подтверждена, услуга активирована.':'Заявка отклонена.');await loadDashboard()}catch(e){notify(e.message)}}
+  async function review(id,paid){
+    showAdminForm({title:paid?'Подтвердить оплату':'Отклонить оплату',subtitle:paid?'После подтверждения услуга будет активирована.':'Укажите причину отказа, она будет отправлена участнику.',fields:[{name:'note',label:paid?'Комментарий':'Причина отказа',type:'textarea',rows:3,required:!paid,placeholder:paid?'Комментарий для участника':'Почему оплата не подтверждена?'}],submitLabel:paid?'Подтвердить':'Отклонить заявку',onSubmit:async values=>{
+      if(!paid&&!values.note.trim()){notify('Укажите причину отказа');return false}
+      await call('admin_review_order',{orderId:id,paid,note:values.note});closeModal();notify(paid?'Оплата подтверждена, услуга активирована.':'Заявка отклонена.');await loadDashboard();return true;
+    }});
+  }
+  function showAdminForm({title,subtitle='',fields,submitLabel='Сохранить',onSubmit}){
+    const markup=fields.map(f=>{
+      const label='<label class="modal-field-label" for="field-'+esc(f.name)+'">'+esc(f.label)+(f.required?'':' <span>необязательно</span>')+'</label>';
+      let control='';
+      if(f.type==='select')control='<select class="modal-input" id="field-'+esc(f.name)+'" name="'+esc(f.name)+'">'+(f.options||[]).map(o=>'<option value="'+esc(o.value)+'">'+esc(o.label)+'</option>').join('')+'</select>';
+      else if(f.type==='textarea')control='<textarea class="modal-textarea" id="field-'+esc(f.name)+'" name="'+esc(f.name)+'" rows="'+Number(f.rows||3)+'" placeholder="'+esc(f.placeholder||'')+'" '+(f.required?'required':'')+'>'+esc(f.value||'')+'</textarea>';
+      else control='<input class="modal-input" id="field-'+esc(f.name)+'" name="'+esc(f.name)+'" type="'+esc(f.type||'text')+'" value="'+esc(f.value||'')+'" placeholder="'+esc(f.placeholder||'')+'" '+(f.required?'required':'')+'>';
+      return '<div class="modal-field">'+label+control+'</div>';
+    }).join('');
+    showModal({title,subtitle,content:'<div class="admin-form-grid">'+markup+'</div>',actions:[{label:'Отмена',onClick:closeModal},{label:submitLabel,primary:true,onClick:async()=>{
+      const values={};fields.forEach(f=>{values[f.name]=modalRoot.querySelector('[name="'+f.name+'"]')?.value?.trim()||''});
+      const btn=modalRoot.querySelector('[data-modal-action="1"]');if(btn){btn.disabled=true;btn.textContent='Сохраняем…'}
+      try{const result=await onSubmit(values);if(result!==false)closeModal()}
+      catch(e){notify(e.message||'Не удалось сохранить изменения')}
+      finally{if(btn&&btn.isConnected){btn.disabled=false;btn.textContent=submitLabel}}
+    }}]});
+  }
   async function adminAction(section){
-    try{
-      if(section==='payments'){openPage('admin');document.getElementById('adminPayments')?.scrollIntoView({behavior:'smooth'});return}
-      if(section==='flights'){const title=prompt('Название рейса:');if(!title)return;const origin=prompt('Город вылета:');if(!origin)return;const destination=prompt('Город прилёта:');if(!destination)return;const departureAt=prompt('Дата и время вылета в ISO, например 2026-11-01T18:00:00+03:00:');if(!departureAt)return;const flightNumber=prompt('Номер рейса (необязательно):','RF001')||'';const aircraft=prompt('Самолёт (необязательно):','Boeing 737-800')||'';const cap=prompt('Количество мест (необязательно):','')||'';await call('admin_create_flight',{flight:{title,origin,destination,departureAt,flightNumber,aircraft,capacity:cap?Number(cap):null}});notify('Рейс создан.');await loadDashboard();openPage('flights');return}
-      if(section==='services'){const code=prompt('Код услуги, например BUSINESS:');if(!code)return;const name=prompt('Название услуги:');if(!name)return;const price=prompt('Стоимость:','300');if(price===null)return;const durationDays=prompt('Срок действия в днях:','30');if(durationDays===null)return;const description=prompt('Описание (необязательно):','')||'';await call('admin_save_service',{service:{code,name,price:Number(price),durationDays:Number(durationDays),description,currency:'RUB'}});notify('Услуга добавлена.');await loadDashboard();return}
-      if(section==='settings'){const choice=prompt('Настройки Royal Flight:\\n1 — изменить мили за минуту\\n2 — добавить карту для оплаты\\n3 — разрешённые Roblox Place ID','1');if(choice===null)return;if(choice==='3'){const ids=prompt('ID разрешённых Roblox Place через запятую:','');if(!ids)return;await call('admin_set_roblox_places',{placeIds:ids.split(',').map(x=>x.trim()).filter(Boolean)});notify('Список Roblox Place ID сохранён.');return}if(choice==='2'){const label=prompt('Название способа оплаты, например Перевод на карту:');if(!label)return;const cardNumber=prompt('Номер карты:');if(!cardNumber)return;const recipientName=prompt('Имя получателя (необязательно):','')||'';const instructions=prompt('Инструкция по оплате (необязательно):','Укажите номер заказа в комментарии к переводу.')||'';await call('admin_add_payment_method',{paymentMethod:{label,cardNumber,recipientName,instructions,active:true}});notify('Реквизиты добавлены.');return}const rate=prompt('Миль за минуту онлайн:','10');if(rate===null)return;await call('admin_set_miles_rate',{milesPerMinute:Number(rate)});notify('Ставка обновлена.');return}
-      if(section==='notifications'){const title=prompt('Заголовок уведомления:');if(!title)return;const body=prompt('Текст уведомления:');if(!body)return;const audience=prompt('Аудитория: all / admins / roblox_linked / active_service','all')||'all';const scheduledAt=prompt('Время отправки ISO (пусто — сохранить черновик):','')||null;await call('admin_create_notification',{notification:{title,body,audience,scheduledAt}});notify('Уведомление отправлено или поставлено в очередь.');return}
-      if(section==='users'){openPage('admin');document.getElementById('adminUsers')?.scrollIntoView({behavior:'smooth'});return}
-    }catch(e){notify(e.message||'Действие не выполнено.')}
+    if(section==='payments'){openPage('admin');document.getElementById('adminPayments')?.scrollIntoView({behavior:'smooth'});return}
+    if(section==='users'){openPage('admin');document.getElementById('adminUsers')?.scrollIntoView({behavior:'smooth'});return}
+    if(section==='flights'){
+      showAdminForm({title:'Новый рейс',subtitle:'Заполните данные нового рейса в расписании.',fields:[
+        {name:'title',label:'Название рейса',required:true,placeholder:'Например, Москва — Анталья'},
+        {name:'origin',label:'Город вылета',required:true,placeholder:'Москва'},
+        {name:'destination',label:'Город прилёта',required:true,placeholder:'Анталья'},
+        {name:'departureAt',label:'Дата и время вылета',type:'datetime-local',required:true},
+        {name:'flightNumber',label:'Номер рейса',value:'RF001'},
+        {name:'aircraft',label:'Самолёт',value:'Boeing 737-800'},
+        {name:'capacity',label:'Количество мест',type:'number',placeholder:'Например, 189'}
+      ],submitLabel:'Создать рейс',onSubmit:async v=>{
+        if(!v.title||!v.origin||!v.destination||!v.departureAt){notify('Заполните обязательные поля');return false}
+        await call('admin_create_flight',{flight:{title:v.title,origin:v.origin,destination:v.destination,departureAt:new Date(v.departureAt).toISOString(),flightNumber:v.flightNumber,aircraft:v.aircraft,capacity:v.capacity?Number(v.capacity):null}});
+        notify('Рейс создан');await loadDashboard();openPage('flights');return true;
+      }});return;
+    }
+    if(section==='services'){
+      showAdminForm({title:'Новая услуга',subtitle:'Добавьте привилегию в каталог пассажиров.',fields:[
+        {name:'code',label:'Код услуги',required:true,placeholder:'BUSINESS'},
+        {name:'name',label:'Название услуги',required:true,placeholder:'Business Class'},
+        {name:'price',label:'Стоимость',type:'number',value:'300',required:true},
+        {name:'durationDays',label:'Срок действия, дней',type:'number',value:'30',required:true},
+        {name:'description',label:'Описание',type:'textarea',rows:3,placeholder:'Краткое описание привилегии'}
+      ],submitLabel:'Добавить услугу',onSubmit:async v=>{
+        if(!v.code||!v.name||!v.price||!v.durationDays){notify('Заполните обязательные поля');return false}
+        await call('admin_save_service',{service:{code:v.code,name:v.name,price:Number(v.price),durationDays:Number(v.durationDays),description:v.description,currency:'RUB'}});
+        notify('Услуга добавлена');await loadDashboard();return true;
+      }});return;
+    }
+    if(section==='notifications'){
+      showAdminForm({title:'Новое объявление',subtitle:'Создайте уведомление для участников приложения.',fields:[
+        {name:'title',label:'Заголовок',required:true,placeholder:'Важная информация'},
+        {name:'body',label:'Текст объявления',type:'textarea',rows:4,required:true,placeholder:'Сообщение для пассажиров'},
+        {name:'audience',label:'Кому отправить',type:'select',options:[{value:'all',label:'Всем участникам'},{value:'admins',label:'Администраторам'},{value:'roblox_linked',label:'Привязавшим Roblox'},{value:'active_service',label:'С активной услугой'}]},
+        {name:'scheduledAt',label:'Отложенная отправка',type:'datetime-local'}
+      ],submitLabel:'Опубликовать',onSubmit:async v=>{
+        if(!v.title||!v.body){notify('Заполните заголовок и текст');return false}
+        await call('admin_create_notification',{notification:{title:v.title,body:v.body,audience:v.audience||'all',scheduledAt:v.scheduledAt?new Date(v.scheduledAt).toISOString():null}});
+        notify('Объявление сохранено');await loadDashboard();return true;
+      }});return;
+    }
+    if(section==='settings'){
+      showModal({title:'Настройки клуба',subtitle:'Выберите параметр, который нужно изменить.',content:'<div class="settings-action-list"><button class="settings-action" data-setting="rate"><span class="settings-action-icon">✦</span><span><strong>Начисление миль</strong><small>Мили за минуту на сервере</small></span><b>›</b></button><button class="settings-action" data-setting="payment"><span class="settings-action-icon">▤</span><span><strong>Способ оплаты</strong><small>Добавить платёжные реквизиты</small></span><b>›</b></button><button class="settings-action" data-setting="places"><span class="settings-action-icon">⌖</span><span><strong>Серверы Roblox</strong><small>Разрешённые Place ID</small></span><b>›</b></button></div>',actions:[{label:'Закрыть',onClick:closeModal}]});
+      modalRoot.querySelector('[data-setting="rate"]')?.addEventListener('click',()=>{
+        closeModal();showAdminForm({title:'Начисление миль',subtitle:'Установите количество миль за минуту на сервере.',fields:[{name:'rate',label:'Миль за минуту',type:'number',value:'10',required:true}],submitLabel:'Сохранить',onSubmit:async v=>{const rate=Number(v.rate);if(!Number.isInteger(rate)||rate<0||rate>10000){notify('Укажите целое число от 0 до 10000');return false}await call('admin_set_miles_rate',{milesPerMinute:rate});notify('Ставка обновлена');return true}});
+      });
+      modalRoot.querySelector('[data-setting="payment"]')?.addEventListener('click',()=>{
+        closeModal();showAdminForm({title:'Реквизиты оплаты',subtitle:'Добавьте способ оплаты для оформления услуг.',fields:[
+          {name:'label',label:'Название способа',required:true,placeholder:'Перевод на карту'},
+          {name:'cardNumber',label:'Номер карты или счёта',required:true,placeholder:'Номер для оплаты'},
+          {name:'recipientName',label:'Получатель',placeholder:'Имя получателя'},
+          {name:'instructions',label:'Инструкция',type:'textarea',rows:3,placeholder:'Что указать в комментарии к платежу'}
+        ],submitLabel:'Добавить реквизиты',onSubmit:async v=>{if(!v.label||!v.cardNumber){notify('Укажите название и номер карты');return false}await call('admin_add_payment_method',{paymentMethod:{label:v.label,cardNumber:v.cardNumber,recipientName:v.recipientName,instructions:v.instructions,active:true}});notify('Реквизиты добавлены');return true}});
+      });
+      modalRoot.querySelector('[data-setting="places"]')?.addEventListener('click',()=>{
+        closeModal();showAdminForm({title:'Серверы Roblox',subtitle:'Укажите Place ID через запятую.',fields:[{name:'ids',label:'Разрешённые Place ID',type:'textarea',rows:3,required:true,placeholder:'123456789, 987654321'}],submitLabel:'Сохранить',onSubmit:async v=>{const ids=v.ids.split(',').map(x=>x.trim()).filter(Boolean);if(!ids.length){notify('Укажите хотя бы один ID');return false}await call('admin_set_roblox_places',{placeIds:ids});notify('Список серверов обновлён');return true}});
+      });return;
+    }
   }
   document.getElementById('robloxLinkButton')?.addEventListener('click',async()=>{
     const button=document.getElementById('robloxLinkButton');if(button){button.disabled=true;button.textContent='Создаём код…'}
