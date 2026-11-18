@@ -471,3 +471,21 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 /* Airline portals have separate content and airline-only feature modules */
 #robloxConnectionGroup[hidden], #milesHow[hidden]{display:none!important}
 #adminCurrencyNote{display:block;margin-top:6px;color:var(--muted);font-size:10px;letter-spacing:.04em}
+
+/* Functional audit: legible alliance and active-benefit components */
+.active-subscription-card{border-color:rgba(130,210,174,.2);background:linear-gradient(140deg,rgba(24,55,58,.55),rgba(15,37,48,.82))}
+.active-subscription-card h3{margin:10px 0 5px}
+.active-subscription-empty{margin-bottom:23px}
+#connectedAccountsHeading[hidden]{display:none!important}
+@media(max-width:520px){
+  .nav-item small{font-size:7.5px}
+  .shortcut-tile small{font-size:8px}
+  .admin-tile small{font-size:8px}
+  .eyebrow{font-size:8px}
+  .muted{font-size:11px}
+}
+@media(max-width:370px){
+  .nav-item small{font-size:7px}
+  .brand-copy strong{font-size:8px}
+  .airline-switcher-wrap>span{font-size:7px}
+}
