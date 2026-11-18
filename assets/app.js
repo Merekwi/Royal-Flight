@@ -395,7 +395,7 @@
       fields:[
         {name:'code',label:'Код услуги',value:current.code||'BUSINESS',required:true},
         {name:'name',label:'Название услуги',value:current.name||'Business Class',required:true},
-        {name:'price',label:'Стоимость через обычную оплату',type:'number',value:String(current.price??300),required:true},
+        {name:'price',label:'Цена при обычной оплате (не используется для Robux-only)',type:'number',value:String(current.price??300)},
         {name:'durationDays',label:'Срок новой активации, дней',type:'number',value:String(current.duration_days??30),required:true},
         {name:'description',label:'Описание',type:'textarea',rows:3,value:current.description||'',placeholder:'Описание привилегии'},
         {name:'active',label:'Услуга отображается в каталоге',type:'select',value:String(current.active!==false),options:[{value:'true',label:'Да'},{value:'false',label:'Нет'}]},
@@ -409,13 +409,13 @@
         const enabled=paymentMode!=='manual_only';
         const passId=v.robloxGamepassId.trim();
         const robuxPrice=v.robuxPrice===''?null:Number(v.robuxPrice);
-        if(!v.code||!v.name||v.price===''||!Number.isInteger(Number(v.durationDays))||Number(v.durationDays)<1){notify('Проверьте код, название, цену и срок услуги');return false}
+        if(!v.code||!v.name||(paymentMode!=='roblox_only'&&v.price==='')||!Number.isInteger(Number(v.durationDays))||Number(v.durationDays)<1){notify('Проверьте код, название, доступную цену и срок услуги');return false}
         if(passId&&!/^[1-9][0-9]{0,19}$/.test(passId)){notify('Game Pass ID должен содержать только цифры');return false}
         if(robuxPrice!==null&&(!Number.isSafeInteger(robuxPrice)||robuxPrice<=0)){notify('Цена в Robux должна быть положительным целым числом');return false}
         if(enabled&&(!passId||robuxPrice===null)){notify('Для оплаты через Robux укажите Game Pass ID и цену в Robux');return false}
         await call('admin_save_service',{service:{
           ...(editing?{id:current.id}:{}),
-          code:v.code,name:v.name,price:Number(v.price),durationDays:Number(v.durationDays),
+          code:v.code,name:v.name,price:v.price===''?0:Number(v.price),durationDays:Number(v.durationDays),
           description:v.description,currency:airline().currency,active:v.active==='true',
           paymentMode,robloxEnabled:enabled,robloxGamepassId:passId,robuxPrice
         }});
