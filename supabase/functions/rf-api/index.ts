@@ -91,16 +91,17 @@ Deno.serve(async (req) => {
 
     if (action === "dashboard") {
       const now = new Date().toISOString();
-      const [flights, services, orders, subscriptions, ledger, announcements, paymentMethods] = await Promise.all([
+      const [flights, services, orders, subscriptions, ledger, announcements, paymentMethods, flightRegistrations] = await Promise.all([
         db.from("rf_flights").select("id,title,flight_number,origin,destination,aircraft,departure_at,registration_deadline,capacity,status,description").eq("airline_code", airlineCode).in("status", ["scheduled","boarding"]).gte("departure_at", now).order("departure_at").limit(20),
         db.from("rf_services").select("id,code,name,description,price,currency,duration_days").eq("airline_code", airlineCode).eq("active", true).order("sort_order"),
         db.from("rf_orders").select("id,order_number,service_id,payment_method_id,amount,currency,status,created_at,paid_at,admin_note").eq("profile_id", profile.id).eq("airline_code", airlineCode).order("created_at", { ascending: false }).limit(20),
         db.from("rf_subscriptions").select("id,service_id,starts_at,ends_at,status").eq("profile_id", profile.id).eq("airline_code", airlineCode).eq("status","active").gt("ends_at", now).order("ends_at"),
         db.from("rf_mile_ledger").select("id,delta,reason,created_at,metadata").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(30),
         db.from("rf_notifications").select("id,title,body,sent_at,created_at").eq("airline_code", airlineCode).eq("status","sent").order("sent_at", { ascending: false }).limit(10),
-        db.from("rf_payment_methods").select("id,label,card_number,recipient_name,instructions").eq("airline_code", airlineCode).eq("active", true).order("created_at")
+        db.from("rf_payment_methods").select("id,label,card_number,recipient_name,instructions").eq("airline_code", airlineCode).eq("active", true).order("created_at"),
+        db.from("rf_flight_registrations").select("id,flight_id,status,created_at").eq("profile_id",profile.id).eq("airline_code",airlineCode).eq("status","registered")
       ]);
-      const err = [flights,services,orders,subscriptions,ledger,announcements,paymentMethods].find(x=>x.error);
+      const err = [flights,services,orders,subscriptions,ledger,announcements,paymentMethods,flightRegistrations].find(x=>x.error);
       if (err) {
         const detail = err.error?.message || "unknown database query error";
         const code = err.error?.code || null;
@@ -132,8 +133,22 @@ Deno.serve(async (req) => {
         adminUsers = adminUsers.map((u: any) => ({ ...u, role: u.role === "owner" ? "owner" : (roleByProfile.get(u.id) || "member") }));
       }
       return json({ airlineCode, profile: portalProfile, flights: flights.data || [], services: services.data || [], orders: orders.data || [],
-        subscriptions: activeSubscriptions, mileLedger: ledger.data || [], announcements: announcements.data || [], paymentMethods: paymentMethods.data || [],
+        subscriptions: activeSubscriptions, flightRegistrations: flightRegistrations.data || [], mileLedger: ledger.data || [], announcements: announcements.data || [], paymentMethods: paymentMethods.data || [],
         admin: admin ? { pendingOrders, users: adminUsers } : null });
+    }
+
+    if (action === "register_flight") {
+      if (!validText(body.flightId,64)) return json({error:"flight_id_required"},400);
+      const result=await db.rpc("rf_register_flight",{
+        p_flight_id:body.flightId,p_profile_id:profile.id,p_airline_code:airlineCode
+      });
+      if(result.error){
+        const message=result.error.message||"";
+        const known=["flight_not_found","registration_closed","flight_already_departed","registration_deadline_passed","flight_full"];
+        const code=known.find(x=>message.includes(x))||"flight_registration_failed";
+        return json({error:code},code==="flight_registration_failed"?500:409);
+      }
+      return json({registration:result.data});
     }
 
     if (action === "create_order") {
