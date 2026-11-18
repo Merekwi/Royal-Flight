@@ -60,6 +60,20 @@ Never grant Business Class merely because UserOwnsGamePassAsync returns true for
 
 **Experience limitation:** Roblox only allows prompting purchases for Game Passes belonging to the current Roblox Experience. If Royal Flight and AZAL are implemented as separate Roblox Experiences, each experience needs its own pass configured for that experience; a Game Pass from one experience cannot be prompted from the other.
 
+
+## Per-service payment channel settings
+
+Each service has its own payment mode, independent of the airline portal:
+- `manual_only` — only the existing non-Robux payment flow (for example, bank transfer/card details).
+- `roblox_only` — only payment through Roblox Game Pass. The Mini App hides the manual order flow, and the backend rejects direct attempts to create a manual order.
+- `both` — passengers may use either the manual payment flow or Roblox Game Pass.
+
+The mode is configured on the existing service record in Admin → Services. Existing services default to `manual_only`, so current payment behaviour remains unchanged until an admin edits the mode.
+
+For `roblox_only` or `both`, a valid current Game Pass ID and positive Robux price are required. The Roblox in-game catalog only returns services whose mode permits Roblox payment. Server-side purchase activation also checks the mode and current Game Pass ID.
+
+Changing the mode affects only future payment options. Existing orders, completed purchases, and each passenger's individual subscription expiry remain unchanged. A `roblox_only` service does not require an ordinary-payment price; its normal price is stored as zero when left blank.
+
 ## Important limitations
 - Do not use the secret in a LocalScript, a RemoteEvent payload, or any client-visible asset.
 - Only the listed Place IDs count. Add every legitimate Royal Flight place where players should earn miles.
