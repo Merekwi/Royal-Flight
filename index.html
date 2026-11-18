@@ -29,6 +29,12 @@
     <button class="avatar-button" id="profileShortcut" aria-label="Открыть профиль"><span id="avatarInitials">RF</span></button>
   </header>
 
+  <div class="connection-banner" id="connectionStatus" hidden role="status" aria-live="polite">
+    <span class="connection-banner-icon">!</span>
+    <div class="connection-banner-copy"><strong id="connectionTitle">Проверяем соединение</strong><p id="connectionMessage">Подключаемся к серверу.</p></div>
+    <button type="button" id="connectionRetry">Повторить</button>
+  </div>
+
   <main id="appMain">
     <section class="page active" id="page-home">
       <div class="welcome-row">
@@ -192,6 +198,6 @@
   <div id="appModal" class="app-modal-root" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
-<script src="./assets/app.js?v=20261118-redesign-v2"></script>
+<script src="./assets/app.js?v=20261118-auth-diagnostics"></script>
 </body>
 </html>
