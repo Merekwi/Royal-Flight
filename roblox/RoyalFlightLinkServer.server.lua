@@ -60,22 +60,49 @@ remote.OnServerInvoke = function(player, code)
     return { ok = true, message = "Roblox успешно привязан к Royal Flight!" }
 end
 
-local function startTracking(player)
-    task.spawn(function()
-        while player.Parent == Players do
-            apiRequest({
-                action = "heartbeat",
-                robloxUserId = player.UserId,
+local function apiRequestBatch(players)
+    if #players == 0 then return end
+    local ids = {}
+    for _, player in ipairs(players) do table.insert(ids, player.UserId) end
+    local ok, response = pcall(function()
+        return HttpService:RequestAsync({
+            Url = API_URL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json",
+                ["x-rf-server-secret"] = SERVER_SECRET
+            },
+            Body = HttpService:JSONEncode({
+                action = "heartbeat_batch",
+                players = ids,
                 placeId = game.PlaceId,
                 jobId = game.JobId
             })
-            task.wait(60)
-        end
+        })
     end)
+    if not ok or not response.Success then
+        warn("[Royal Flight] Mileage batch failed", ok and response.StatusCode or response)
+    end
 end
 
-Players.PlayerAdded:Connect(startTracking)
+local heartbeatBusy = false
+local function sendOnlineSnapshot()
+    if heartbeatBusy then return end
+    heartbeatBusy = true
+    apiRequestBatch(Players:GetPlayers())
+    heartbeatBusy = false
+end
+
+Players.PlayerAdded:Connect(function()
+    task.delay(2, sendOnlineSnapshot)
+end)
 Players.PlayerRemoving:Connect(function(player)
+    apiRequest({
+        action = "heartbeat",
+        robloxUserId = player.UserId,
+        placeId = game.PlaceId,
+        jobId = game.JobId
+    })
     apiRequest({
         action = "leave",
         robloxUserId = player.UserId,
@@ -83,4 +110,12 @@ Players.PlayerRemoving:Connect(function(player)
         jobId = game.JobId
     })
 end)
-for _, player in ipairs(Players:GetPlayers()) do startTracking(player) end
+
+task.spawn(function()
+    task.wait(2)
+    sendOnlineSnapshot()
+    while true do
+        task.wait(60)
+        sendOnlineSnapshot()
+    end
+end)
