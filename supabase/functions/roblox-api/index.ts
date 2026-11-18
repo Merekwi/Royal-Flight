@@ -51,8 +51,8 @@ Deno.serve(async (req) => {
       const [profile, services] = await Promise.all([
         db.from("rf_profiles").select("display_name,roblox_username").eq("roblox_user_id", userId).maybeSingle(),
         db.from("rf_services")
-          .select("id,airline_code,code,name,description,duration_days,roblox_gamepass_id,robux_price")
-          .eq("airline_code", airlineCode).eq("active", true).eq("roblox_enabled", true)
+          .select("id,airline_code,code,name,description,duration_days,payment_mode,roblox_gamepass_id,robux_price")
+          .eq("airline_code", airlineCode).eq("active", true).in("payment_mode", ["roblox_only","both"]).eq("roblox_enabled", true)
           .order("sort_order")
       ]);
       if (services.error) return json({ error: "catalog_load_failed" }, 503);
