@@ -21,7 +21,7 @@ async function verifyTelegramInitData(initData: string, botToken: string): Promi
   const receivedHash = params.get("hash");
   if (!receivedHash) return null;
   params.delete("hash");
-  const pairs = Array.from(params.entries()).sort(([a], [b]) => a.localeCompare(b));
+  const pairs = Array.from(params.entries()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
   const checkString = pairs.map(([key, value]) => `${key}=${value}`).join("\n");
   const secret = await hmac(new TextEncoder().encode("WebAppData"), botToken);
   const calculatedHash = hex(await hmac(new Uint8Array(secret), checkString));
