@@ -445,3 +445,25 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 #flightCatalog .data-list,#mileLedger .data-list,#ordersHistory .data-list,
 #adminPayments .data-list,#adminUsers .data-list{display:grid;gap:11px}
 #announcementList .data-list{display:grid;gap:10px}
+
+/* Connection and authentication diagnostics */
+.connection-banner[hidden]{display:none!important}
+.connection-banner{
+  display:flex;align-items:center;gap:12px;padding:13px 14px;margin:-12px 0 21px;
+  border:1px solid rgba(228,156,117,.28);border-radius:15px;
+  background:linear-gradient(130deg,rgba(105,48,42,.2),rgba(19,37,53,.94));
+  box-shadow:0 10px 28px rgba(0,0,0,.12)
+}
+.connection-banner-icon{
+  display:grid;place-items:center;width:30px;height:30px;flex:0 0 30px;border-radius:10px;
+  background:rgba(225,135,103,.12);color:#f0b18e;font-size:15px;font-weight:800
+}
+.connection-banner-copy{min-width:0;flex:1}
+.connection-banner-copy strong{display:block;font-size:10px;color:#f4d7c8;margin-bottom:4px}
+.connection-banner-copy p{margin:0;color:#c1ac9f;font-size:8px;line-height:1.55;overflow-wrap:anywhere}
+#connectionRetry{
+  flex:0 0 auto;padding:8px 10px;border:1px solid rgba(228,181,136,.22);border-radius:9px;
+  background:rgba(228,181,136,.08);color:#f0d3b5;font:800 8px Manrope,sans-serif;cursor:pointer
+}
+#connectionRetry:disabled{opacity:.6;cursor:wait}
+@media(max-width:390px){.connection-banner{gap:9px;padding:11px}.connection-banner-copy p{font-size:7.5px}#connectionRetry{padding:8px}}
