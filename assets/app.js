@@ -229,11 +229,12 @@
         const paymentLabel=mode==='roblox_only'?'ТОЛЬКО ROBUX':mode==='both'?'ОБА СПОСОБА':'ОБЫЧНАЯ ОПЛАТА';
         const robloxInfo=robuxAllowed?'<p class="service-roblox-pass">Оплата в Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux. При выборе этой услуги покупка проводится через Roblox.</p>':'';
         const manualPrice=manualAllowed?money(s.price,s.currency):'';
-        const buttons=(manualAllowed?'<button class="primary-button" data-buy="'+esc(s.id)+'">Оформить обычную оплату</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<a class="primary-button service-roblox-button" href="https://www.roblox.com/game-pass/'+esc(s.roblox_gamepass_id)+'" target="_blank" rel="noopener">Купить за Robux ↗</a>':'');
-        const bothLink=mode==='both'&&robuxAllowed?'<a class="secondary-button service-roblox-button" href="https://www.roblox.com/game-pass/'+esc(s.roblox_gamepass_id)+'" target="_blank" rel="noopener">Оплатить Robux ↗</a>':'';
+        const buttons=(manualAllowed?'<button class="primary-button" data-buy="'+esc(s.id)+'">Оформить обычную оплату</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<button type="button" class="primary-button service-roblox-button" data-buy-roblox="1">Купить за Robux ↗</button>':'');
+        const bothLink=mode==='both'&&robuxAllowed?'<button type="button" class="secondary-button service-roblox-button" data-buy-roblox="1">Оплатить Robux ↗</button>':'';
         return '<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><div class="service-payment-mode">'+paymentLabel+'</div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||airline().serviceDescription)+'</p>'+robloxInfo+'<div class="service-buy-row">'+(manualAllowed?'<strong>'+manualPrice+'</strong>':'<strong>'+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</strong>')+buttons+bothLink+'</div></article>';
       }).join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог '+esc(airline().title)+' пока пуст</h3><p>Администрация добавит сюда услуги этой авиакомпании.</p></div>';
       sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)));
+      sc.querySelectorAll('[data-buy-roblox]').forEach(b=>b.addEventListener('click',openRobloxPortal));
     }
     const oh=document.getElementById('ordersHistory');
     if(oh){const orders=d.orders||[];oh.innerHTML='<h2 class="subheading orders-heading">Мои заказы</h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>{const labels={awaiting_payment:'Ожидает оплаты',awaiting_review:'На проверке',paid:'Оплачен',rejected:'Отклонён',cancelled:'Отменён'};return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-'+esc(o.status)+'">'+esc(labels[o.status]||o.status)+'</span></div><p class="muted">'+(o.payment_provider==='roblox_gamepass'?Number(o.amount).toLocaleString('ru-RU')+' Robux · оплачено в Roblox':money(o.amount,o.currency))+' · '+date(o.created_at)+'</p>'+(o.admin_note?'<p class="data-description">'+esc(o.admin_note)+'</p>':'')+(o.status==='awaiting_payment'?'<div class="button-row"><button class="secondary-button" data-show-payment="'+esc(o.id)+'">Реквизиты</button><button class="primary-button" data-mark-paid="'+esc(o.id)+'">Я оплатил</button></div>':'')+'</article>'}).join('')+'</div>':'<div class="empty-card"><span class="empty-icon">▣</span><div><strong>Заказов пока нет</strong><p>Оформленные услуги появятся здесь.</p></div></div>');oh.querySelectorAll('[data-mark-paid]').forEach(b=>b.addEventListener('click',()=>markPaid(b.dataset.markPaid)));oh.querySelectorAll('[data-show-payment]').forEach(b=>b.addEventListener('click',()=>showPayment(b.dataset.showPayment)))}
@@ -282,6 +283,11 @@
       };
       notify(messages[e.payload?.error]||e.message||'Не удалось записаться на рейс.');
     }
+  }
+  function openRobloxPortal(){
+    const placeUrl='https://www.roblox.com/games/101826857818257';
+    if(tg?.openLink){tg.openLink(placeUrl);return}
+    window.open(placeUrl,'_blank','noopener');
   }
   async function createOrder(serviceId){
     const methods=dashboard?.paymentMethods||[];
@@ -335,7 +341,7 @@
           const mode=s.payment_mode||'manual_only';
           const modeLabel=mode==='roblox_only'?'ТОЛЬКО ROBUX':mode==='both'?'ОБЫЧНАЯ ОПЛАТА + ROBUX':'ТОЛЬКО ОБЫЧНАЯ ОПЛАТА';
           const priceLabel=mode==='roblox_only'?Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux':money(s.price,s.currency)+(mode==='both'?' + '+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux':'');
-          const pass=s.roblox_gamepass_id&&s.roblox_enabled?'<p class="data-description">Текущий Game Pass ID: '+esc(s.roblox_gamepass_id)+' · '+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</p><p><a class="proof-link" href="https://www.roblox.com/game-pass/'+esc(s.roblox_gamepass_id)+'" target="_blank" rel="noopener">Открыть Game Pass ↗</a></p>':(mode==='manual_only'?'<p class="data-description">Roblox-оплата отключена</p>':'<p class="data-description">Game Pass не настроен</p>');
+          const pass=s.roblox_gamepass_id&&s.roblox_enabled?'<p class="data-description">Текущий Game Pass ID: '+esc(s.roblox_gamepass_id)+' · '+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</p><p>Оплата проходит внутри плейса Royal Alliance.</p>':(mode==='manual_only'?'<p class="data-description">Roblox-оплата отключена</p>':'<p class="data-description">Game Pass не настроен</p>');
           return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(s.name)+' · '+esc(s.code)+'</strong><span class="order-status '+(s.active?'status-paid':'status-cancelled')+'">'+(s.active?'Активна':'Скрыта')+'</span></div><p class="service-payment-mode">'+modeLabel+'</p><p class="muted">'+priceLabel+' · '+Number(s.duration_days)+' дней</p>'+pass+'<div class="button-row"><button class="secondary-button" data-edit-service="'+esc(s.id)+'">Изменить услугу / оплату</button></div></article>';
         }).join('')+'</div>':'<div class="empty-card"><strong>Услуг пока нет</strong><p>Добавьте первую услугу в каталог '+esc(airline().title)+'.</p></div>');
       servicesBox.querySelector('#adminAddService')?.addEventListener('click',()=>editService(null));
