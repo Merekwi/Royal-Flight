@@ -489,3 +489,9 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
   .brand-copy strong{font-size:8px}
   .airline-switcher-wrap>span{font-size:7px}
 }
+
+.flight-registration-row{display:flex;align-items:center;justify-content:flex-end;margin-top:13px;padding-top:12px;border-top:1px solid rgba(187,205,223,.1)}
+.flight-registration-row .primary-button{min-width:165px}
+.flight-registration-state{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid rgba(130,210,174,.22);border-radius:10px;background:rgba(130,210,174,.08);color:#9fe0bf;font-size:9px;font-weight:800}
+.flight-registration-closed{color:var(--muted);font-size:9px}
+@media(max-width:390px){.flight-registration-row .primary-button{width:100%;min-width:0}}
