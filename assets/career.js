@@ -10,7 +10,7 @@ const esc=v=>api().esc(v);
 const when=v=>v?new Date(v).toLocaleString('ru-RU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Без срока';
 const status=v=>'career-status career-status-'+String(v||'').replace(/[^a-z_]/g,'');
 const schemaOf=f=>f&&f.schema&&Array.isArray(f.schema.sections)?f.schema:{sections:[]};
-const uid=()=>crypto.randomUUID().replace(/-/g,'');
+const uid=()=>window.crypto?.randomUUID?crypto.randomUUID().replace(/-/g,''):('q'+Date.now().toString(36)+Math.random().toString(36).slice(2,9));
 const empty=(a,b)=>'<div class="career-empty"><span>✧</span><strong>'+esc(a)+'</strong><p>'+esc(b)+'</p></div>';
 const fieldsOf=s=>(s.sections||[]).flatMap(x=>x.fields||[]);
 function conditionMatches(rule,answers){

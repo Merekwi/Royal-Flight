@@ -20,7 +20,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Validate frontend JavaScript
-        run: node --check assets/app.js
+        run: |
+          node --check assets/app.js
+          node --check assets/career.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site artifact

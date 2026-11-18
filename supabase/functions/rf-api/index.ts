@@ -38,6 +38,13 @@ async function verifyInitData(initData: string, botToken: string) {
 function validText(v: unknown, max=300): v is string { return typeof v === "string" && v.trim().length > 0 && v.length <= max; }
 
 const CAREER_FIELD_TYPES = new Set(["text","textarea","email","number","date","url","select","multiselect","yesno"]);
+function stableCareerJson(value: any): string {
+  if (Array.isArray(value)) return "[" + value.map(stableCareerJson).join(",") + "]";
+  if (value && typeof value === "object") {
+    return "{" + Object.keys(value).sort().map((key) => JSON.stringify(key) + ":" + stableCareerJson(value[key])).join(",") + "}";
+  }
+  return JSON.stringify(value);
+}
 function careerRecord(value: unknown): value is Record<string, any> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
@@ -430,7 +437,7 @@ Deno.serve(async (req) => {
         if (existing.error || !existing.data) return json({ error:"career_form_not_found" },404);
         const submittedCount = await db.from("rf_career_applications").select("id",{count:"exact",head:true}).eq("form_id",f.id).eq("airline_code",airlineCode);
         if (submittedCount.error) return json({ error:"career_form_applications_check_failed" },503);
-        if ((submittedCount.count || 0) > 0 && JSON.stringify(existing.data.schema) !== JSON.stringify(safeSchema))
+        if ((submittedCount.count || 0) > 0 && stableCareerJson(existing.data.schema) !== stableCareerJson(safeSchema))
           return json({ error:"career_schema_locked", message:"В этой форме уже есть отправленные анкеты. Чтобы сохранить их корректное отображение, структура вопросов больше не меняется. Создайте новую форму для следующего набора." },409);
         saved = await db.from("rf_career_forms").update(values).eq("id",f.id).eq("airline_code",airlineCode).select().single();
       } else {
