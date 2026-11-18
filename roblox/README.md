@@ -5,7 +5,7 @@
 - Roblox identity is taken from the server-side `Player.UserId` and `Player.Name`, not from a user-submitted username.
 - The server sends a heartbeat every 60 seconds while the player remains in a Roblox server where the trusted ServerScript is installed.
 - The backend credits complete minutes only. The current database rate is 1 Royal Alliance mile per credited minute; a Royal Flight portal admin can change the rate in that portal.
-- Mileage heartbeats work in every Place ID except the explicitly excluded menu Place. The mileage path does not use the approved Place ID allow-list.
+- The [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) (Place ID `101826857818257`) is the menu Place and is excluded from mileage. Other Places earn miles when the trusted ServerScript is installed. The mileage path does not use the approved Place ID allow-list.
 - Roblox mileage is credited to the one shared Royal Alliance wallet and is visible in every member airline portal.
 - Roblox is currently a Royal Flight integration, not an AZAL feature.
 
@@ -79,6 +79,6 @@ Changing the mode affects only future payment options. Existing orders, complete
 - Do not use the secret in a LocalScript, a RemoteEvent payload, or any client-visible asset.
 - Install the trusted ServerScript in every Roblox Experience/Place where players should earn miles. Only the configured excluded menu Place is ignored for mileage; ordinary heartbeat requests do not need to be allow-listed.
 - The initial Roblox linking action and Game Pass/catalog actions still use the separate approved Place ID allow-list. Add the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) there so players can link their accounts.
-- The excluded mileage Place is stored in `rf_settings.roblox_miles_excluded_place_ids`; it must contain the menu Place ID as a string.
+- The excluded mileage Place is stored in `rf_settings.roblox_miles_excluded_place_ids`; for this project it must contain `101826857818257` as a string ([Royal Alliance lobby](https://www.roblox.com/games/101826857818257)).
 - Roblox HTTP calls can fail temporarily; those gaps are not retroactively credited.
 - Before public launch, configure the owner's numeric Telegram ID in `rf_settings.owner_telegram_id`, set the Edge Function secret above, and add the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) to the approved-place list. An empty allow-list blocks linking and other portal actions, but it does not block mileage heartbeats.
