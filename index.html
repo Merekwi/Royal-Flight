@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./assets/styles.css?v=20261118-redesign-v2">
+<link rel="stylesheet" href="./assets/styles.css?v=20261118-airline-portals">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -39,7 +39,7 @@
     <section class="page active" id="page-home">
       <div class="welcome-row">
         <div class="welcome-copy">
-          <p class="eyebrow">ВАШЕ ПУТЕШЕСТВИЕ НАЧИНАЕТСЯ ЗДЕСЬ</p>
+          <p class="eyebrow" id="welcomeEyebrow">ВАШЕ ПУТЕШЕСТВИЕ НАЧИНАЕТСЯ ЗДЕСЬ</p>
           <h1>Добро пожаловать<span class="gold-dot">.</span></h1>
           <p class="muted" id="welcomeName">Ваша программа лояльности Royal Flight</p>
         </div>
@@ -101,7 +101,7 @@
       <div class="page-heading page-heading-hero">
         <p class="eyebrow">LOYALTY PROGRAMME</p>
         <h1>Ваши мили</h1>
-        <p class="muted">Каждая минута в полёте с нами приближает к новым привилегиям.</p>
+        <p class="muted" id="milesDescription">Отдельный баланс Royal Miles и история операций Royal Flight.</p>
         <div class="heading-decoration">✦</div>
       </div>
       <div class="sub-balance">
@@ -109,7 +109,7 @@
         <strong><span id="milesBalanceDetail">—</span> <small>миль</small></strong>
         <div class="balance-card-bottom"><span>LOYALTY ACCOUNT</span><span>✦ MEMBER</span></div>
       </div>
-      <div class="miles-how">
+      <div class="miles-how" id="milesHow">
         <div class="miles-how-icon">◷</div><div><strong>Накапливайте мили в Roblox</strong><p>Мили начисляются за подтверждённое время на разрешённых серверах Roblox. Баланс обновляется автоматически после обработки времени.</p></div>
       </div>
       <div class="section-heading section-heading-spaced"><div><p class="eyebrow">ИСТОРИЯ</p><h2>Операции по счёту</h2></div></div>
@@ -122,12 +122,12 @@
       <div class="page-heading page-heading-hero">
         <p class="eyebrow">EXCLUSIVE BENEFITS</p>
         <h1>Привилегии клуба</h1>
-        <p class="muted">Дополнительные возможности и услуги для участников программы.</p>
+        <p class="muted" id="servicesDescription">Услуги и привилегии Royal Flight для участников программы.</p>
         <div class="heading-decoration">◇</div>
       </div>
       <div class="services-intro">
         <div class="services-intro-symbol">✦</div>
-        <div><strong>Путешествуйте с комфортом</strong><p>Выберите доступную услугу. Детали заказа и его статус всегда будут под рукой.</p></div>
+        <div><strong id="serviceIntroTitle">Путешествуйте с комфортом</strong><p>Выберите услугу из отдельного каталога выбранной авиакомпании.</p></div>
       </div>
       <div class="section-heading"><div><p class="eyebrow">MEMBER BENEFITS</p><h2>Доступные услуги</h2></div></div>
       <div id="serviceCatalog">
@@ -149,9 +149,10 @@
       <div class="profile-card">
         <div class="profile-card-top"><div class="profile-avatar" id="profileAvatar">RF</div><div class="profile-member-label"><span>PASSENGER CLUB</span><b>УЧАСТНИК</b></div></div>
         <div class="profile-card-name"><strong id="profileName">Гость Royal Flight</strong><p class="muted" id="telegramIdentity">Ожидание данных Telegram…</p></div>
-        <div class="profile-card-foot"><span>LOYALTY MEMBER</span><span>✦ ROYAL FLIGHT</span></div>
+        <div class="profile-card-foot"><span>LOYALTY MEMBER</span><span id="profileProgramLabel">ROYAL FLIGHT</span></div>
       </div>
       <div class="section-heading"><div><p class="eyebrow">CONNECTED ACCOUNTS</p><h2>Подключения</h2></div></div>
+      <div id="robloxConnectionGroup">
       <div class="connection-card">
         <div class="connection-icon roblox-icon">R</div>
         <div class="connection-info"><strong>Roblox</strong><p id="robloxProfileText">Не привязан</p></div>
@@ -159,13 +160,14 @@
       </div>
       <button class="primary-button roblox-link-button" id="robloxLinkButton">Привязать аккаунт Roblox <span>↗</span></button>
       <div class="security-note"><span>♢</span><p><strong>Безопасное подключение</strong><br>Для привязки используется одноразовый код. Пароль Roblox не требуется.</p></div>
+      </div>
     </section>
 
     <section class="page" id="page-admin">
       <div class="page-heading page-heading-hero">
         <p class="eyebrow">CONTROL CENTRE</p>
         <h1>Управление</h1>
-        <p class="muted">Инструменты администрирования пассажирского клуба.</p>
+        <p class="muted">Управление отдельным порталом <strong id="adminPortalName">Royal Flight</strong>. <span id="adminCurrencyNote">Валюта каталога: RUB</span></p>
         <div class="heading-decoration">⚙</div>
       </div>
       <div class="admin-welcome">
@@ -198,6 +200,6 @@
   <div id="appModal" class="app-modal-root" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
-<script src="./assets/app.js?v=20261118-auth-diagnostics"></script>
+<script src="./assets/app.js?v=20261118-airline-portals"></script>
 </body>
 </html>
