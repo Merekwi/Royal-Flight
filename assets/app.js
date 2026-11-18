@@ -227,10 +227,10 @@
         const robuxAllowed=(mode==='roblox_only'||mode==='both')&&s.roblox_enabled&&s.roblox_gamepass_id&&s.robux_price;
         const manualAllowed=mode==='manual_only'||mode==='both';
         const paymentLabel=mode==='roblox_only'?'ТОЛЬКО ROBUX':mode==='both'?'ОБА СПОСОБА':'ОБЫЧНАЯ ОПЛАТА';
-        const robloxInfo=robuxAllowed?'<p class="service-roblox-pass">Оплата в Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux. При выборе этой услуги покупка проводится через Roblox.</p>':'';
+        const robloxInfo=robuxAllowed?'<p class="service-roblox-pass">Оплата через Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux. Нажмите кнопку, чтобы перейти в игру Royal Flight и завершить покупку там.</p>':'';
         const manualPrice=manualAllowed?money(s.price,s.currency):'';
-        const buttons=(manualAllowed?'<button class="primary-button" data-buy="'+esc(s.id)+'">Оформить обычную оплату</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<button type="button" class="primary-button service-roblox-button" data-buy-roblox="1">Купить за Robux ↗</button>':'');
-        const bothLink=mode==='both'&&robuxAllowed?'<button type="button" class="secondary-button service-roblox-button" data-buy-roblox="1">Оплатить Robux ↗</button>':'';
+        const buttons=(manualAllowed?'<button class="primary-button" data-buy="'+esc(s.id)+'">Оформить обычную оплату</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<button type="button" class="primary-button service-roblox-button" data-buy-roblox="1">Перейти в игру для оплаты ↗</button>':'');
+        const bothLink=mode==='both'&&robuxAllowed?'<button type="button" class="secondary-button service-roblox-button" data-buy-roblox="1">Перейти в игру для оплаты ↗</button>':'';
         return '<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><div class="service-payment-mode">'+paymentLabel+'</div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||airline().serviceDescription)+'</p>'+robloxInfo+'<div class="service-buy-row">'+(manualAllowed?'<strong>'+manualPrice+'</strong>':'<strong>'+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</strong>')+buttons+bothLink+'</div></article>';
       }).join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог '+esc(airline().title)+' пока пуст</h3><p>Администрация добавит сюда услуги этой авиакомпании.</p></div>';
       sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)));
@@ -285,7 +285,8 @@
     }
   }
   function openRobloxPortal(){
-    const placeUrl='https://www.roblox.com/games/101826857818257';
+    // Launch the Royal Flight experience, not its Game Pass or experience-details page.
+    const placeUrl='https://www.roblox.com/games/start?placeId=101826857818257';
     if(tg?.openLink){tg.openLink(placeUrl);return}
     window.open(placeUrl,'_blank','noopener');
   }
