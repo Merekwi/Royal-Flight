@@ -101,8 +101,8 @@ Deno.serve(async (req) => {
       const now = new Date().toISOString();
       const [flights, services, orders, subscriptions, ledger, announcements, paymentMethods, flightRegistrations] = await Promise.all([
         db.from("rf_flights").select("id,title,flight_number,origin,destination,aircraft,departure_at,registration_deadline,capacity,status,description").eq("airline_code", airlineCode).in("status", ["scheduled","boarding"]).gte("departure_at", now).order("departure_at").limit(20),
-        db.from("rf_services").select("id,code,name,description,price,currency,duration_days").eq("airline_code", airlineCode).eq("active", true).order("sort_order"),
-        db.from("rf_orders").select("id,order_number,service_id,payment_method_id,amount,currency,status,created_at,paid_at,admin_note").eq("profile_id", profile.id).eq("airline_code", airlineCode).order("created_at", { ascending: false }).limit(20),
+        db.from("rf_services").select("id,code,name,description,price,currency,duration_days,roblox_enabled,roblox_gamepass_id,robux_price").eq("airline_code", airlineCode).eq("active", true).order("sort_order"),
+        db.from("rf_orders").select("id,order_number,service_id,payment_method_id,amount,currency,status,created_at,paid_at,admin_note,payment_provider,payment_reference").eq("profile_id", profile.id).eq("airline_code", airlineCode).order("created_at", { ascending: false }).limit(20),
         db.from("rf_subscriptions").select("id,service_id,starts_at,ends_at,status").eq("profile_id", profile.id).eq("airline_code", airlineCode).eq("status","active").gt("ends_at", now).order("ends_at"),
         db.from("rf_mile_ledger").select("id,delta,reason,created_at,metadata").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(30),
         db.from("rf_notifications").select("id,title,body,sent_at,created_at").eq("airline_code", airlineCode).eq("status","sent").order("sent_at", { ascending: false }).limit(10),
@@ -125,12 +125,14 @@ Deno.serve(async (req) => {
       let pendingOrders: unknown[] = [];
       let adminUsers: unknown[] = [];
       if (admin) {
-        const [pending, users] = await Promise.all([
+        const [pending, users, serviceCatalog] = await Promise.all([
           db.from("rf_orders").select("id,order_number,profile_id,service_id,amount,currency,status,proof_url,user_note,created_at").eq("airline_code", airlineCode).eq("status","awaiting_review").order("created_at"),
-          db.from("rf_profiles").select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").order("created_at",{ascending:false}).limit(100)
+          db.from("rf_profiles").select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").order("created_at",{ascending:false}).limit(100),
+          db.from("rf_services").select("id,airline_code,code,name,description,price,currency,duration_days,active,sort_order,roblox_enabled,roblox_gamepass_id,robux_price").eq("airline_code",airlineCode).order("sort_order")
         ]);
         if (!pending.error) pendingOrders = pending.data || [];
         if (!users.error) adminUsers = users.data || [];
+        var adminServiceCatalog = serviceCatalog.error ? [] : (serviceCatalog.data || []);
       }
       const serviceById = new Map((services.data || []).map((s) => [s.id, s]));
       const activeSubscriptions = (subscriptions.data || []).map((s) => ({ ...s, service: serviceById.get(s.service_id) || null }));
@@ -142,7 +144,7 @@ Deno.serve(async (req) => {
       }
       return json({ airlineCode, profile: portalProfile, flights: flights.data || [], services: services.data || [], orders: orders.data || [],
         subscriptions: activeSubscriptions, flightRegistrations: flightRegistrations.data || [], mileLedger: ledger.data || [], announcements: announcements.data || [], paymentMethods: paymentMethods.data || [],
-        admin: admin ? { pendingOrders, users: adminUsers } : null });
+        admin: admin ? { pendingOrders, users: adminUsers, services: adminServiceCatalog } : null });
     }
 
     if (action === "register_flight") {
@@ -276,11 +278,21 @@ Deno.serve(async (req) => {
     if (action === "admin_save_service") {
       const s = body.service || {};
       if (!validText(s.code,40) || !validText(s.name,100) || !Number.isFinite(Number(s.price)) || Number(s.price)<0 || !Number.isInteger(Number(s.durationDays)) || Number(s.durationDays)<1) return json({error:"invalid_service_fields"},400);
+      const passId = typeof s.robloxGamepassId === "string" ? s.robloxGamepassId.trim() : "";
+      const robuxRaw = s.robuxPrice === null || s.robuxPrice === undefined || String(s.robuxPrice).trim() === "" ? null : Number(s.robuxPrice);
+      const robloxEnabled = s.robloxEnabled === true || s.robloxEnabled === "true";
+      if (passId && !/^[1-9][0-9]{0,19}$/.test(passId)) return json({error:"invalid_roblox_gamepass_id"},400);
+      if (robuxRaw !== null && (!Number.isSafeInteger(robuxRaw) || robuxRaw <= 0)) return json({error:"invalid_robux_price"},400);
+      if (robloxEnabled && (!passId || robuxRaw === null)) return json({error:"roblox_gamepass_configuration_required"},400);
       const values={airline_code:airlineCode,code:s.code.trim().toUpperCase(),name:s.name.trim(),description:typeof s.description==="string"?s.description.slice(0,1000):null,
-        price:Number(s.price),currency:validText(s.currency,6)?s.currency.toUpperCase():"RUB",duration_days:Number(s.durationDays),active:s.active!==false,sort_order:Number.isInteger(s.sortOrder)?s.sortOrder:0,updated_at:new Date().toISOString()};
+        price:Number(s.price),currency:validText(s.currency,6)?s.currency.toUpperCase():"RUB",duration_days:Number(s.durationDays),active:s.active!==false,sort_order:Number.isInteger(s.sortOrder)?s.sortOrder:0,
+        roblox_enabled:robloxEnabled,roblox_gamepass_id:passId||null,robux_price:robuxRaw,updated_at:new Date().toISOString()};
       const result=s.id?await db.from("rf_services").update(values).eq("id",s.id).eq("airline_code",airlineCode).select().single():await db.from("rf_services").insert(values).select().single();
-      if (result.error) return json({error:"service_save_failed"},409);
-      await db.from("rf_admin_audit").insert({airline_code:airlineCode,admin_telegram_id:telegram.id,action:s.id?"service_updated":"service_created",entity_type:"service",entity_id:result.data.id,details:{code:result.data.code}});
+      if (result.error) {
+        console.error("service_save_failed",result.error.message);
+        return json({error:"service_save_failed",message:"Проверьте поля услуги и уникальность Game Pass ID."},409);
+      }
+      await db.from("rf_admin_audit").insert({airline_code:airlineCode,admin_telegram_id:telegram.id,action:s.id?"service_updated":"service_created",entity_type:"service",entity_id:result.data.id,details:{code:result.data.code,robloxEnabled,gamepassId:passId||null}});
       return json({service:result.data});
     }
 
