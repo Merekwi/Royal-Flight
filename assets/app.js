@@ -70,18 +70,60 @@
     if(sc){sc.innerHTML=d.services?.length?'<div class="service-list">'+d.services.map(s=>'<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||'Временная привилегия Royal Flight.')+'</p><div class="service-buy-row"><strong>'+money(s.price,s.currency)+'</strong><button class="primary-button" data-buy="'+esc(s.id)+'">Оформить</button></div></article>').join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог скоро откроется</h3><p>Все услуги будут доступны в одном месте с историей заказов и продлением доступа.</p></div>';sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)))}
     const oh=document.getElementById('ordersHistory');
     if(oh){const orders=d.orders||[];oh.innerHTML='<h2 class="subheading orders-heading">Мои заказы</h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>{const labels={awaiting_payment:'Ожидает оплаты',awaiting_review:'На проверке',paid:'Оплачен',rejected:'Отклонён',cancelled:'Отменён'};return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-'+esc(o.status)+'">'+esc(labels[o.status]||o.status)+'</span></div><p class="muted">'+money(o.amount,o.currency)+' · '+date(o.created_at)+'</p>'+(o.admin_note?'<p class="data-description">'+esc(o.admin_note)+'</p>':'')+(o.status==='awaiting_payment'?'<div class="button-row"><button class="secondary-button" data-show-payment="'+esc(o.id)+'">Реквизиты</button><button class="primary-button" data-mark-paid="'+esc(o.id)+'">Я оплатил</button></div>':'')+'</article>'}).join('')+'</div>':'<div class="empty-card"><span class="empty-icon">▣</span><div><strong>Заказов пока нет</strong><p>Оформленные услуги появятся здесь.</p></div></div>');oh.querySelectorAll('[data-mark-paid]').forEach(b=>b.addEventListener('click',()=>markPaid(b.dataset.markPaid)));oh.querySelectorAll('[data-show-payment]').forEach(b=>b.addEventListener('click',()=>showPayment(b.dataset.showPayment)))}
-    const announcement=document.querySelector('#page-home .empty-card');
-    if(announcement&&d.announcements?.length){announcement.outerHTML='<div class="data-list">'+d.announcements.map(n=>'<article class="data-card"><h3>'+esc(n.title)+'</h3><p class="data-description">'+esc(n.body)+'</p><p class="muted">'+date(n.sent_at||n.created_at)+'</p></article>').join('')+'</div>'}
+    const announcement=document.getElementById('announcementList');
+    if(announcement){const news=d.announcements||[];announcement.innerHTML=news.length?'<div class="data-list">'+news.map(n=>'<article class="data-card announcement-card"><div class="data-card-top"><span class="flight-tag">НОВОСТИ</span><span class="muted">'+date(n.sent_at||n.created_at)+'</span></div><h3>'+esc(n.title)+'</h3><p class="data-description">'+esc(n.body)+'</p></article>').join('')+'</div>':'<div class="empty-card"><span class="empty-icon">◌</span><div><strong>Пока нет объявлений</strong><p>Здесь появятся новости и уведомления авиакомпании.</p></div></div>'}
     if(d.admin&&(p.role==='admin'||p.role==='owner'))renderAdmin(d.admin);
   }
-  async function createOrder(serviceId){
-    const methods=dashboard?.paymentMethods||[];if(!methods.length){notify('Администрация ещё не добавила реквизиты оплаты.');return}
-    const choice=prompt('Выберите способ оплаты, введя номер:\n'+methods.map((m,i)=>(i+1)+'. '+m.label+' — '+(m.recipient_name||'получатель не указан')).join('\n'),'1');
-    if(choice===null)return;const method=methods[Number(choice)-1];if(!method){notify('Неверный способ оплаты.');return}
-    try{const x=await call('create_order',{serviceId,paymentMethodId:method.id}),o=x.order;const info=['Заказ: '+o.order_number,'Сумма: '+money(o.amount,o.currency),'Карта: '+method.card_number,method.recipient_name?'Получатель: '+method.recipient_name:'',method.instructions||'','Комментарий к переводу: '+o.order_number].filter(Boolean).join('\n');alert('Переведите точную сумму и обязательно укажите номер заказа в комментарии к платежу.\n\n'+info);await loadDashboard();openPage('services')}catch(e){notify(e.message)}
+  const modalRoot=document.getElementById('appModal');
+  function closeModal(){if(!modalRoot)return;modalRoot.hidden=true;modalRoot.innerHTML='';}
+  function showModal({title,subtitle='',content='',actions=[]}){
+    if(!modalRoot)return;
+    modalRoot.hidden=false;
+    modalRoot.innerHTML='<div class="modal-backdrop"><section class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-grabber"></div><div class="modal-head"><div><p class="eyebrow">ROYAL FLIGHT · PASSENGER CLUB</p><h2 id="modalTitle">'+esc(title)+'</h2>'+(subtitle?'<p class="modal-subtitle">'+esc(subtitle)+'</p>':'')+'</div><button class="modal-close" type="button" aria-label="Закрыть">×</button></div><div class="modal-content">'+content+'</div><div class="modal-actions">'+actions.map((a,i)=>'<button type="button" class="'+(a.primary?'primary-button':'secondary-button')+'" data-modal-action="'+i+'">'+esc(a.label)+'</button>').join('')+'</div></section></div>';
+    modalRoot.querySelector('.modal-close')?.addEventListener('click',closeModal);
+    modalRoot.querySelector('.modal-backdrop')?.addEventListener('click',e=>{if(e.target.classList.contains('modal-backdrop'))closeModal()});
+    actions.forEach((a,i)=>modalRoot.querySelector('[data-modal-action="'+i+'"]')?.addEventListener('click',a.onClick));
+    modalRoot.querySelector('input,textarea,button')?.focus();
   }
-  function showPayment(id){const o=(dashboard?.orders||[]).find(x=>x.id===id);if(!o)return;const m=(dashboard?.paymentMethods||[]).find(x=>x.id===o.payment_method_id);if(!m){notify('Реквизиты недоступны. Напишите администрации.');return}alert(['Заказ: '+o.order_number,'Сумма: '+money(o.amount,o.currency),'Карта: '+m.card_number,m.recipient_name?'Получатель: '+m.recipient_name:'',m.instructions||'','Комментарий к переводу: '+o.order_number].filter(Boolean).join('\\n'))}
-  async function markPaid(id){const note=prompt('Комментарий для администрации (необязательно):','');if(note===null)return;try{await call('mark_paid',{orderId:id,userNote:note});notify('Заявка отправлена на проверку.');await loadDashboard()}catch(e){notify(e.message)}}
+  function paymentDetailsContent(o,m){
+    return '<div class="payment-summary"><span>Сумма к оплате</span><strong>'+esc(money(o.amount,o.currency))+'</strong><small>Заказ '+esc(o.order_number)+'</small></div><div class="payment-detail-list"><div class="payment-detail"><span>Номер карты</span><strong>'+esc(m.card_number)+'</strong><button type="button" class="copy-value" data-copy="'+esc(m.card_number)+'">Копировать</button></div>'+(m.recipient_name?'<div class="payment-detail"><span>Получатель</span><strong>'+esc(m.recipient_name)+'</strong></div>':'')+'<div class="payment-detail"><span>Комментарий к переводу</span><strong>'+esc(o.order_number)+'</strong><button type="button" class="copy-value" data-copy="'+esc(o.order_number)+'">Копировать</button></div></div>'+(m.instructions?'<p class="modal-note">'+esc(m.instructions)+'</p>':'')+'<p class="modal-hint">Переведите точную сумму и укажите номер заказа в комментарии к платежу.</p>';
+  }
+  function wireCopyButtons(){
+    modalRoot?.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{
+      const value=b.dataset.copy||'';
+      try{await navigator.clipboard.writeText(value);notify('Скопировано')}catch(_){const input=document.createElement('textarea');input.value=value;document.body.appendChild(input);input.select();try{document.execCommand('copy');notify('Скопировано')}catch(__){notify('Не удалось скопировать')}input.remove()}
+    }));
+  }
+  async function createOrder(serviceId){
+    const methods=dashboard?.paymentMethods||[];
+    if(!methods.length){notify('Администрация ещё не добавила реквизиты оплаты.');return}
+    const content='<div class="payment-choice-list">'+methods.map((m,i)=>'<label class="payment-choice"><input type="radio" name="paymentChoice" value="'+esc(m.id)+'" '+(i===0?'checked':'')+'><span class="payment-choice-mark"></span><span><strong>'+esc(m.label)+'</strong><small>'+esc(m.recipient_name||'Получатель не указан')+'</small></span><span class="payment-choice-arrow">›</span></label>').join('')+'</div>';
+    showModal({title:'Способ оплаты',subtitle:'Выберите удобный способ для оформления заказа.',content,actions:[{label:'Отмена',onClick:closeModal},{label:'Продолжить',primary:true,onClick:async()=>{
+      const chosen=modalRoot.querySelector('input[name="paymentChoice"]:checked')?.value;
+      const method=methods.find(m=>m.id===chosen);if(!method){notify('Выберите способ оплаты');return}
+      const next=modalRoot.querySelector('[data-modal-action="1"]');if(next){next.disabled=true;next.textContent='Создаём заказ…'}
+      try{
+        const x=await call('create_order',{serviceId,paymentMethodId:method.id}),o=x.order;
+        closeModal();await loadDashboard();openPage('services');
+        showModal({title:'Заказ создан',subtitle:'Осталось выполнить перевод и отправить заявку на проверку.',content:paymentDetailsContent(o,method),actions:[{label:'Закрыть',onClick:closeModal},{label:'Я оплатил',primary:true,onClick:()=>{closeModal();markPaid(o.id)}}]});
+        wireCopyButtons();
+      }catch(e){if(next){next.disabled=false;next.textContent='Продолжить'}notify(e.message)}
+    }}]});
+  }
+  function showPayment(id){
+    const o=(dashboard?.orders||[]).find(x=>x.id===id);if(!o)return;
+    const m=(dashboard?.paymentMethods||[]).find(x=>x.id===o.payment_method_id);
+    if(!m){notify('Реквизиты недоступны. Напишите администрации.');return}
+    showModal({title:'Реквизиты оплаты',subtitle:'Заказ '+o.order_number,content:paymentDetailsContent(o,m),actions:[{label:'Закрыть',onClick:closeModal},{label:'Я оплатил',primary:true,onClick:()=>{closeModal();markPaid(o.id)}}]});
+    wireCopyButtons();
+  }
+  async function markPaid(id){
+    showModal({title:'Подтверждение оплаты',subtitle:'Заявка поступит администрации на проверку.',content:'<label class="modal-field-label" for="paymentNote">Комментарий <span>необязательно</span></label><textarea id="paymentNote" class="modal-textarea" rows="3" placeholder="Например, имя отправителя или время перевода"></textarea>',actions:[{label:'Назад',onClick:closeModal},{label:'Отправить заявку',primary:true,onClick:async()=>{
+      const note=modalRoot.querySelector('#paymentNote')?.value||'',btn=modalRoot.querySelector('[data-modal-action="1"]');if(btn){btn.disabled=true;btn.textContent='Отправляем…'}
+      try{await call('mark_paid',{orderId:id,userNote:note});closeModal();notify('Заявка отправлена на проверку.');await loadDashboard()}
+      catch(e){if(btn){btn.disabled=false;btn.textContent='Отправить заявку'}notify(e.message)}
+    }}]});
+  }
   function renderAdmin(a){
     const box=document.getElementById('adminPayments');if(!box)return;const orders=a.pendingOrders||[];
     box.innerHTML='<h2 class="subheading orders-heading">Заявки на оплату <span class="count-badge">'+orders.length+'</span></h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>'<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-awaiting_review">На проверке</span></div><p class="muted">'+money(o.amount,o.currency)+' · '+date(o.created_at)+'</p>'+(o.user_note?'<p class="data-description">'+esc(o.user_note)+'</p>':'')+(o.proof_url?'<p><a class="proof-link" target="_blank" rel="noopener" href="'+esc(o.proof_url)+'">Открыть подтверждение</a></p>':'')+'<div class="button-row"><button class="primary-button" data-paid="'+esc(o.id)+'">Оплачено</button><button class="secondary-button" data-reject="'+esc(o.id)+'">Не оплачено</button></div></article>').join('')+'</div>':'<div class="empty-card"><span class="empty-icon">✓</span><div><strong>Нет ожидающих заявок</strong><p>Заявки появятся после нажатия пользователем «Я оплатил».</p></div></div>');
@@ -106,7 +148,15 @@
       if(section==='users'){openPage('admin');document.getElementById('adminUsers')?.scrollIntoView({behavior:'smooth'});return}
     }catch(e){notify(e.message||'Действие не выполнено.')}
   }
-  document.getElementById('robloxLinkButton')?.addEventListener('click',async()=>{try{const r=await call('create_roblox_link');alert('Код привязки Roblox: '+r.linkCode+'\n\nОн действует 10 минут. Откройте игру Royal Flight в Roblox и введите код в окне привязки.');}catch(e){notify(e.message)}});
+  document.getElementById('robloxLinkButton')?.addEventListener('click',async()=>{
+    const button=document.getElementById('robloxLinkButton');if(button){button.disabled=true;button.textContent='Создаём код…'}
+    try{
+      const r=await call('create_roblox_link');
+      showModal({title:'Привязка Roblox',subtitle:'Откройте игру Royal Flight и введите этот одноразовый код в окне привязки.',content:'<div class="roblox-code-card"><span>ВАШ КОД</span><strong>'+esc(r.linkCode)+'</strong><small>Действует 10 минут</small><button class="copy-value" type="button" data-copy="'+esc(r.linkCode)+'">Копировать код</button></div><p class="modal-hint">Пароль от Roblox не требуется. Не передавайте этот код другим людям.</p>',actions:[{label:'Понятно',primary:true,onClick:closeModal}]});
+      wireCopyButtons();
+    }catch(e){notify(e.message)}
+    finally{if(button){button.disabled=false;button.textContent='Привязать Roblox'}}
+  });
   document.querySelectorAll('[data-admin]').forEach(b=>b.addEventListener('click',()=>adminAction(b.dataset.admin)));
   window.RoyalFlightApp={openPage,notify,telegramInitData:tg?.initData||null};
   signIn();
