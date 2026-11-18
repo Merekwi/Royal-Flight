@@ -248,16 +248,26 @@ Deno.serve(async (req) => {
       let adminUsers: unknown[] = [];
       let adminCareerApplications: any[] = [];
       if (admin) {
-        const [pending, users, serviceCatalog, careerApplicationsQuery] = await Promise.all([
+        const [pending, membershipsQuery, serviceCatalog, careerApplicationsQuery] = await Promise.all([
           db.from("rf_orders").select("id,order_number,profile_id,service_id,amount,currency,status,proof_url,user_note,created_at").eq("airline_code", airlineCode).eq("status","awaiting_review").order("created_at"),
-          db.from("rf_profiles").select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").order("created_at",{ascending:false}).limit(100),
+          db.from("rf_airline_memberships").select("profile_id").eq("airline_code",airlineCode),
           db.from("rf_services").select("id,airline_code,code,name,description,price,currency,duration_days,active,sort_order,payment_mode,roblox_enabled,roblox_gamepass_id,robux_price").eq("airline_code",airlineCode).order("sort_order"),
           db.from("rf_career_applications").select("id,form_id,profile_id,answers,status,admin_note,created_at,updated_at,reviewed_by,reviewed_at").eq("airline_code",airlineCode).order("created_at",{ascending:false}).limit(150)
         ]);
-        if (!pending.error) pendingOrders = pending.data || [];
-        if (!users.error) adminUsers = users.data || [];
-        var adminServiceCatalog = serviceCatalog.error ? [] : (serviceCatalog.data || []);
+        if (pending.error) return json({ error:"pending_orders_load_failed" },503);
+        if (membershipsQuery.error) return json({ error:"airline_memberships_load_failed" },503);
+        if (serviceCatalog.error) return json({ error:"admin_services_load_failed" },503);
         if (careerApplicationsQuery.error) return json({ error: "career_applications_load_failed" }, 503);
+        pendingOrders = pending.data || [];
+        var adminServiceCatalog = serviceCatalog.data || [];
+        const memberIds = Array.from(new Set((membershipsQuery.data || []).map((x: any) => x.profile_id)));
+        const usersQuery = isOwner
+          ? await db.from("rf_profiles").select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").order("created_at",{ascending:false}).limit(200)
+          : memberIds.length
+            ? await db.from("rf_profiles").select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").in("id",memberIds).order("created_at",{ascending:false}).limit(200)
+            : { data:[], error:null };
+        if (usersQuery.error) return json({ error:"admin_users_load_failed" },503);
+        adminUsers = usersQuery.data || [];
         const appRows = careerApplicationsQuery.data || [];
         const applicantIds = Array.from(new Set(appRows.map((x: any) => x.profile_id)));
         const applicantResult = applicantIds.length
@@ -547,6 +557,11 @@ Deno.serve(async (req) => {
       const hasRole=role==="member"||role==="admin";
       if(hasRole&&!isOwner)return json({error:"owner_required_to_change_roles"},403);
       if(body.milesDelta!==undefined&&!isOwner)return json({error:"alliance_owner_required_to_adjust_miles"},403);
+      if (!isOwner) {
+        const membershipCheck = await db.from("rf_airline_memberships").select("profile_id").eq("profile_id",userId).eq("airline_code",airlineCode).maybeSingle();
+        if (membershipCheck.error) return json({error:"airline_membership_check_failed"},503);
+        if (!membershipCheck.data) return json({error:"user_not_found"},404);
+      }
       const target=await db.from("rf_profiles").select("id,telegram_id,role,miles,display_name,telegram_username,roblox_username").eq("id",userId).maybeSingle();
       if(!target.data)return json({error:"user_not_found"},404);
       if(hasRole){
