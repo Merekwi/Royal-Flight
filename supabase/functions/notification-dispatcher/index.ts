@@ -23,12 +23,33 @@ Deno.serve(async(req)=>{
       const claimed=await db.from("rf_notifications").update({status:"failed"}).eq("id",notification.id).eq("airline_code",notification.airline_code).eq("status","scheduled").select("id").maybeSingle();
       if(claimed.error||!claimed.data)continue;
       const profiles=await db.from("rf_profiles").select("id,telegram_id,role,roblox_user_id");
-      if(profiles.error){failedCount++;continue;}
+      if(profiles.error){
+        failedCount++;
+        await db.from("rf_notifications").update({status:"scheduled"}).eq("id",notification.id).eq("airline_code",notification.airline_code);
+        continue;
+      }
       let recipients=profiles.data||[];
-      if(notification.audience==="admins")recipients=recipients.filter(p=>p.role==="admin"||p.role==="owner");
+      if(notification.audience==="admins"){
+        const [staff,owners]=await Promise.all([
+          db.from("rf_airline_staff").select("profile_id").eq("airline_code",notification.airline_code),
+          db.from("rf_profiles").select("id").eq("role","owner")
+        ]);
+        if(staff.error||owners.error){
+          failedCount++;
+          await db.from("rf_notifications").update({status:"scheduled"}).eq("id",notification.id).eq("airline_code",notification.airline_code);
+          continue;
+        }
+        const allowedIds=new Set([...(staff.data||[]).map(p=>p.profile_id),...(owners.data||[]).map(p=>p.id)]);
+        recipients=recipients.filter(p=>allowedIds.has(p.id));
+      }
       if(notification.audience==="roblox_linked")recipients=recipients.filter(p=>p.roblox_user_id!==null);
       if(notification.audience==="active_service"){
         const active=await db.from("rf_subscriptions").select("profile_id").eq("airline_code",notification.airline_code).eq("status","active").gt("ends_at",now);
+        if(active.error){
+          failedCount++;
+          await db.from("rf_notifications").update({status:"scheduled"}).eq("id",notification.id).eq("airline_code",notification.airline_code);
+          continue;
+        }
         const activeIds=new Set((active.data||[]).map(x=>x.profile_id));
         recipients=recipients.filter(p=>activeIds.has(p.id));
       }
