@@ -1,4 +1,4 @@
-name: Deploy Royal Flight Mini App to GitHub Pages
+name: Deploy Royal Alliance Mini App to GitHub Pages
 on:
   push:
     branches: [main]
