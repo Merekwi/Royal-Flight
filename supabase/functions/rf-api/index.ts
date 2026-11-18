@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         db.from("rf_mile_ledger").select("id,delta,reason,created_at,metadata").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(30),
         db.from("rf_notifications").select("id,title,body,sent_at,created_at").eq("airline_code", airlineCode).eq("status","sent").order("sent_at", { ascending: false }).limit(10),
         db.from("rf_payment_methods").select("id,label,card_number,recipient_name,instructions").eq("airline_code", airlineCode).eq("active", true).order("created_at"),
-        db.from("rf_flight_registrations").select("id,flight_id,status,created_at").eq("profile_id",profile.id).eq("airline_code",airlineCode).eq("status","registered")
+        db.from("rf_flight_registrations").select("id,flight_id,status,created_at").eq("profile_id",profile.id).eq("airline_code",airlineCode).in("status",["registered","checked_in"])
       ]);
       const err = [flights,services,orders,subscriptions,ledger,announcements,paymentMethods,flightRegistrations].find(x=>x.error);
       if (err) {
