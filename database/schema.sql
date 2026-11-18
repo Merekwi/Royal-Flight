@@ -1,6 +1,6 @@
 -- Royal Flight Platform schema. Keep browser roles locked; use trusted Edge Functions.
 create extension if not exists pgcrypto;
-create table public.rf_profiles (id uuid primary key default gen_random_uuid(), telegram_id bigint not null, airline_code text not null default 'royal' check(airline_code in ('royal','azal')), telegram_username text, display_name text, roblox_user_id bigint unique, roblox_username text, role text not null default 'member' check(role in ('member','admin','owner')), miles bigint not null default 0 check(miles>=0), created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create table public.rf_profiles (id uuid primary key default gen_random_uuid(), telegram_id bigint unique not null, telegram_username text, display_name text, roblox_user_id bigint unique, roblox_username text, role text not null default 'member' check(role in ('member','admin','owner')), miles bigint not null default 0 check(miles>=0), created_at timestamptz not null default now(), updated_at timestamptz not null default now());
 create table public.rf_flights (id uuid primary key default gen_random_uuid(), airline_code text not null default 'royal' check(airline_code in ('royal','azal')), title text not null, flight_number text, origin text not null, destination text not null, aircraft text, departure_at timestamptz not null, registration_deadline timestamptz, capacity integer check(capacity is null or capacity>0), status text not null default 'scheduled' check(status in ('draft','scheduled','boarding','departed','completed','cancelled')), description text, created_by bigint, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
 create table public.rf_flight_registrations (id uuid primary key default gen_random_uuid(), airline_code text not null default 'royal' check(airline_code in ('royal','azal')), flight_id uuid not null references public.rf_flights(id) on delete cascade, profile_id uuid not null references public.rf_profiles(id) on delete cascade, status text not null default 'registered' check(status in ('registered','cancelled','checked_in')), created_at timestamptz not null default now(), unique(flight_id,profile_id));
 create table public.rf_services (id uuid primary key default gen_random_uuid(), airline_code text not null default 'royal' check(airline_code in ('royal','azal')), code text not null, name text not null, description text, price numeric(12,2) not null check(price>=0), currency text not null default 'RUB', duration_days integer not null check(duration_days>0), active boolean not null default true, sort_order integer not null default 0, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
@@ -12,28 +12,22 @@ create table public.rf_online_sessions (id uuid primary key default gen_random_u
 create table public.rf_notifications (id uuid primary key default gen_random_uuid(), airline_code text not null default 'royal' check(airline_code in ('royal','azal')), title text not null, body text not null, audience text not null default 'all' check(audience in ('all','admins','roblox_linked','active_service')), scheduled_at timestamptz, sent_at timestamptz, status text not null default 'draft' check(status in ('draft','scheduled','sent','failed')), created_by bigint, created_at timestamptz not null default now());
 create table public.rf_settings (key text primary key, value jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now(), updated_by bigint);
 create table public.rf_admin_audit (id uuid primary key default gen_random_uuid(), airline_code text not null default 'royal' check(airline_code in ('royal','azal')), admin_telegram_id bigint not null, action text not null, entity_type text, entity_id text, details jsonb not null default '{}'::jsonb, created_at timestamptz not null default now());
-alter table public.rf_profiles drop constraint if exists rf_profiles_telegram_id_key;
 alter table public.rf_services drop constraint if exists rf_services_code_key;
-create unique index rf_profiles_telegram_airline_uidx on public.rf_profiles(telegram_id,airline_code);
 create unique index rf_services_airline_code_uidx on public.rf_services(airline_code,code);
 create index rf_flights_departure_idx on public.rf_flights(airline_code,departure_at);
 create index rf_orders_status_created_idx on public.rf_orders(airline_code,status,created_at desc);
 create index rf_subscriptions_profile_ends_idx on public.rf_subscriptions(airline_code,profile_id,ends_at desc);
 create index rf_mile_ledger_profile_created_idx on public.rf_mile_ledger(profile_id,created_at desc);
 create index rf_online_sessions_active_idx on public.rf_online_sessions(roblox_user_id,last_heartbeat_at desc) where ended_at is null;
-create unique index rf_profiles_id_airline_uidx on public.rf_profiles(id,airline_code);
 create unique index rf_flights_id_airline_uidx on public.rf_flights(id,airline_code);
 create unique index rf_services_id_airline_uidx on public.rf_services(id,airline_code);
 create unique index rf_payment_methods_id_airline_uidx on public.rf_payment_methods(id,airline_code);
 create unique index rf_orders_id_airline_uidx on public.rf_orders(id,airline_code);
-alter table public.rf_orders add constraint rf_orders_profile_airline_fkey foreign key(profile_id,airline_code) references public.rf_profiles(id,airline_code);
 alter table public.rf_orders add constraint rf_orders_service_airline_fkey foreign key(service_id,airline_code) references public.rf_services(id,airline_code);
 alter table public.rf_orders add constraint rf_orders_payment_airline_fkey foreign key(payment_method_id,airline_code) references public.rf_payment_methods(id,airline_code);
-alter table public.rf_subscriptions add constraint rf_subscriptions_profile_airline_fkey foreign key(profile_id,airline_code) references public.rf_profiles(id,airline_code);
 alter table public.rf_subscriptions add constraint rf_subscriptions_service_airline_fkey foreign key(service_id,airline_code) references public.rf_services(id,airline_code);
 alter table public.rf_subscriptions add constraint rf_subscriptions_order_airline_fkey foreign key(source_order_id,airline_code) references public.rf_orders(id,airline_code);
 alter table public.rf_flight_registrations add constraint rf_flight_registrations_flight_airline_fkey foreign key(flight_id,airline_code) references public.rf_flights(id,airline_code);
-alter table public.rf_flight_registrations add constraint rf_flight_registrations_profile_airline_fkey foreign key(profile_id,airline_code) references public.rf_profiles(id,airline_code);
 do $$ declare t text; begin foreach t in array array['rf_profiles','rf_flights','rf_flight_registrations','rf_services','rf_payment_methods','rf_orders','rf_subscriptions','rf_mile_ledger','rf_online_sessions','rf_notifications','rf_settings','rf_admin_audit'] loop execute format('alter table public.%I enable row level security',t); execute format('revoke all on public.%I from anon, authenticated',t); end loop; end $$;
 insert into public.rf_settings(key,value) values('miles_per_minute','10'::jsonb),('roblox_place_ids','[]'::jsonb),('owner_telegram_id','null'::jsonb) on conflict(key) do nothing;
 
@@ -43,20 +37,15 @@ create or replace function public.rf_admin_review_order(
 ) returns jsonb
 language plpgsql security invoker set search_path = public, pg_temp
 as $$
-declare
-  v_order public.rf_orders%rowtype;
-  v_service public.rf_services%rowtype;
-  v_admin_airline text;
-  v_start timestamptz;
-  v_end timestamptz;
-  v_sub_id uuid;
+declare v_order public.rf_orders%rowtype; v_service public.rf_services%rowtype;
+  v_start timestamptz; v_end timestamptz; v_sub_id uuid;
 begin
   if current_user not in ('service_role','postgres') then raise exception 'not_authorized' using errcode='42501'; end if;
   select * into v_order from public.rf_orders where id=p_order_id for update;
   if not found then raise exception 'order_not_found' using errcode='P0002'; end if;
-  select airline_code into v_admin_airline from public.rf_profiles
-    where telegram_id=p_admin_telegram_id and airline_code=v_order.airline_code and role in ('admin','owner') limit 1;
-  if not found then raise exception 'admin_required_for_airline' using errcode='42501'; end if;
+  if not exists(select 1 from public.rf_profiles where telegram_id=p_admin_telegram_id and role in ('admin','owner')) then
+    raise exception 'admin_required' using errcode='42501';
+  end if;
   if v_order.status <> 'awaiting_review' then raise exception 'order_not_pending_review' using errcode='P0001'; end if;
   if not p_paid then
     update public.rf_orders set status='rejected',admin_note=nullif(trim(coalesce(p_note,'')),''),reviewed_by=p_admin_telegram_id,reviewed_at=now()
@@ -66,8 +55,7 @@ begin
         jsonb_build_object('order_number',v_order.order_number,'note',p_note));
     return jsonb_build_object('status','rejected','order_number',v_order.order_number,'airline_code',v_order.airline_code);
   end if;
-  select * into v_service from public.rf_services
-    where id=v_order.service_id and airline_code=v_order.airline_code and active=true;
+  select * into v_service from public.rf_services where id=v_order.service_id and airline_code=v_order.airline_code and active=true;
   if not found then raise exception 'service_unavailable_for_airline' using errcode='P0001'; end if;
   update public.rf_orders set status='paid',paid_at=now(),admin_note=nullif(trim(coalesce(p_note,'')),''),reviewed_by=p_admin_telegram_id,reviewed_at=now()
     where id=p_order_id and airline_code=v_order.airline_code;
