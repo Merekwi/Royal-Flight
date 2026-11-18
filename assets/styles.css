@@ -438,3 +438,10 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
   .admin-grid{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* Dynamic catalog spacing */
+.service-list{display:grid;gap:11px;margin:14px 0}
+.service-list>.service-card{margin:0;min-width:0}
+#flightCatalog .data-list,#mileLedger .data-list,#ordersHistory .data-list,
+#adminPayments .data-list,#adminUsers .data-list{display:grid;gap:11px}
+#announcementList .data-list{display:grid;gap:10px}
