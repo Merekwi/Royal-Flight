@@ -467,3 +467,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 }
 #connectionRetry:disabled{opacity:.6;cursor:wait}
 @media(max-width:390px){.connection-banner{gap:9px;padding:11px}.connection-banner-copy p{font-size:7.5px}#connectionRetry{padding:8px}}
+
+/* Airline portals have separate content and airline-only feature modules */
+#robloxConnectionGroup[hidden], #milesHow[hidden]{display:none!important}
+#adminCurrencyNote{display:block;margin-top:6px;color:var(--muted);font-size:10px;letter-spacing:.04em}
