@@ -180,6 +180,8 @@
   function render(d){
     if(d.airlineCode&&d.airlineCode!==currentAirline)return;
     const p=d.profile||{},m=Number(p.miles||0).toLocaleString('ru-RU');
+    const adminNav=document.getElementById('adminNav');
+    if(adminNav)adminNav.hidden=!(p.role==='admin'||p.role==='owner');
     document.getElementById('milesBalance').textContent=m;document.getElementById('milesBalanceDetail').textContent=m;
     document.getElementById('robloxStatus').textContent=airline().roblox?(p.roblox_username?'Roblox: '+p.roblox_username:'Roblox не привязан'):'Участник Royal Alliance';
     document.getElementById('robloxProfileText').textContent=p.roblox_username||'Не привязан';
