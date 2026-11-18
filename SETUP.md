@@ -1,4 +1,4 @@
-# Royal Flight Mini App — deployment checklist
+# Royal Alliance Mini App — deployment checklist
 
 The source is in this repository and the backend Edge Functions are deployed to Supabase project `iotwbzzlwltjfddrmhvg`.
 
@@ -6,7 +6,7 @@ The source is in this repository and the backend Edge Functions are deployed to 
 
 In Supabase → Project Settings → Edge Functions → Secrets, add:
 
-- `TELEGRAM_BOT_TOKEN` — token from BotFather for the Royal Flight bot. Required by `telegram-auth` and `rf-api`.
+- `TELEGRAM_BOT_TOKEN` — token from BotFather for the Telegram bot that hosts the Royal Alliance Mini App. Required by `telegram-auth` and `rf-api`.
 - `ROBLOX_SERVER_SECRET` — a long random value used only by the Roblox server script and the `roblox-api` function.
 - `NOTIFICATION_CRON_SECRET` — another independent long random value used by the scheduled-notification workflow and `notification-dispatcher`.
 
@@ -36,9 +36,9 @@ In GitHub repository Settings → Secrets and variables → Actions, add a repos
 
 The workflow `.github/workflows/dispatch-notifications.yml` checks for due notifications every five minutes. GitHub Actions must be enabled for the repository. You can also run the workflow manually from the Actions tab.
 
-## 5. Connect the Roblox game
+## 5. Connect the Royal Alliance Roblox lobby
 
-Follow [roblox/README.md](roblox/README.md). Add the approved game Place ID in the Mini App under **Настройки → option 3**. Enable HTTP requests in Roblox Studio and insert the two scripts from the `roblox` folder into the specified services.
+Follow [roblox/README.md](roblox/README.md). Use the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) (Place ID: `101826857818257`) and add its Place ID to the approved list in the Mini App under **Настройки → Серверы Roblox**. Enable HTTP requests in Roblox Studio and insert the two scripts from the `roblox` folder into the specified services.
 
 ## 6. Verify before launch
 
@@ -50,7 +50,7 @@ Follow [roblox/README.md](roblox/README.md). Add the approved game Place ID in t
 - Create a test service and add payment details. Place a test order, press **Я оплатил**, and approve it from the admin panel.
 - Confirm that approval activates the subscription and a later purchase extends its expiry.
 - Test a scheduled notification with a short future time.
-- Link a test Roblox account and confirm miles appear after a full minute in the approved published Place.
+- Link a test Roblox account through the Royal Alliance lobby and confirm miles appear after a full minute in a published Place where the mileage tracker is installed (the lobby itself is excluded).
 
 ## Current implementation notes
 
