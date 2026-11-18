@@ -64,7 +64,6 @@ Deno.serve(async (req) => {
     if (typeof body?.initData !== "string" || body.initData.length > 10000) {
       return new Response(JSON.stringify({ error: "invalid_init_data" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    const airlineCode = body.airlineCode === "azal" ? "azal" : "royal";
     const verified = await verifyTelegramInitData(body.initData, botToken);
     if (!verified) return new Response(JSON.stringify({ error: "telegram_verification_failed" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -75,14 +74,13 @@ Deno.serve(async (req) => {
     const isConfiguredOwner = ownerValue !== null && ownerValue !== undefined && String(ownerValue).replace(/^"|"$/g,"") === verified.telegram_id;
     const profilePatch = {
       telegram_id: verified.telegram_id,
-      airline_code: airlineCode,
       telegram_username: verified.telegram_username || null,
       display_name: verified.display_name || null,
       updated_at: new Date().toISOString(),
       ...(isConfiguredOwner ? { role: "owner" } : {}),
     };
-    const { data, error } = await db.from("rf_profiles").upsert(profilePatch, { onConflict: "telegram_id,airline_code" })
-      .select("id,telegram_id,airline_code,telegram_username,display_name,role,miles,roblox_username").single();
+    const { data, error } = await db.from("rf_profiles").upsert(profilePatch, { onConflict: "telegram_id" })
+      .select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").single();
 
     if (error || !data) {
       console.error("profile_upsert_failed", error?.message);
