@@ -14,6 +14,28 @@
 </head>
 <body>
 <div class="app-shell">
+<div class="portal-gateway" id="portalGateway" role="dialog" aria-modal="true" aria-labelledby="portalGatewayTitle">
+  <div class="portal-gateway-inner">
+    <div class="portal-gateway-brand"><span class="portal-alliance-mark">RA</span><span>ROYAL ALLIANCE <small>VIRTUAL AIRLINE ALLIANCE</small></span></div>
+    <p class="eyebrow portal-gateway-eyebrow">WELCOME ABOARD</p>
+    <h1 id="portalGatewayTitle">Добро пожаловать в личный кабинет виртуального альянса «Royal Alliance»</h1>
+    <p class="portal-gateway-copy">Выберите, в какой портал вы хотите попасть.</p>
+    <div class="portal-choice-list">
+      <button class="portal-choice-card portal-choice-royal" type="button" data-enter-airline="royal">
+        <span class="portal-choice-logo"><img src="./assets/royal-flight-logo.svg" alt=""></span>
+        <span class="portal-choice-text"><span class="portal-choice-kicker">PASSENGER CLUB</span><strong>Royal Flight</strong><small>Рейсы, услуги и привилегии Royal Flight</small></span>
+        <span class="portal-choice-arrow">↗</span>
+      </button>
+      <button class="portal-choice-card portal-choice-azal" type="button" data-enter-airline="azal">
+        <span class="portal-choice-logo portal-choice-logo-azal"><img src="https://upload.wikimedia.org/wikipedia/commons/4/4d/Azerbaijan_Airlines_logo.svg" alt=""></span>
+        <span class="portal-choice-text"><span class="portal-choice-kicker">AZERBAIJAN AIRLINES</span><strong>AZAL</strong><small>Отдельный портал Azerbaijan Airlines</small></span>
+        <span class="portal-choice-arrow">↗</span>
+      </button>
+    </div>
+    <p class="portal-gateway-footnote">Единый профиль и мили Royal Alliance · отдельные порталы авиакомпаний</p>
+  </div>
+</div>
+
   <header class="topbar">
     <a class="brand" href="#" data-page="home" aria-label="На главную">
       <img class="brand-logo" src="./assets/royal-flight-logo.svg" alt="Royal Flight">
@@ -205,6 +227,6 @@
   <div id="appModal" class="app-modal-root" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
-<script src="./assets/app.js?v=20261118-payment-modes-2"></script>
+<script src="./assets/app.js?v=20261118-portal-gateway"></script>
 </body>
 </html>
