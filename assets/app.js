@@ -183,7 +183,7 @@
       content:'<div class="empty-card"><strong>Ваш профиль Telegram ещё не связан с Roblox.</strong><p>Пока вы не привяжете Roblox-аккаунт через игру Royal Flight, система не сможет распознать вас на сервере. Мили за проведённое в игре время начисляться не будут.</p></div><p class="modal-hint">Подключение: откройте профиль, получите одноразовый код и введите его в окне Royal Flight внутри Roblox. Пароль Roblox не нужен.</p>',
       actions:[
         {label:'Напомнить позже',onClick:closeModal},
-        {label:'Перейти к подключению',primary:true,onClick:()=>{closeModal();openPage('profile');document.getElementById('robloxLinkButton')?.scrollIntoView({behavior:'smooth',block:'center'})}}
+        {label:'Перейти к подключению',primary:true,onClick:async()=>{closeModal();if(currentAirline!=='royal')await enterPortal('royal');openPage('profile');document.getElementById('robloxLinkButton')?.scrollIntoView({behavior:'smooth',block:'center'})}}
       ]
     });
   }
