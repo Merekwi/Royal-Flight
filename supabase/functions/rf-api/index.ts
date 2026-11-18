@@ -60,7 +60,10 @@ function normalizeCareerSchema(raw: any): any | null {
     const sourceField = knownFields.get(value.fieldId);
     const operator = value.operator === "not_equals" ? "not_equals" : value.operator === "equals" || !value.operator ? "equals" : "";
     if (!sourceField || !operator || typeof value.value !== "string" || !value.value.trim() || value.value.length > 200) return false;
-    const conditionValue = value.value.trim();
+    const rawConditionValue = value.value.trim();
+    const conditionValue = sourceField.type === "yesno"
+      ? (rawConditionValue === "Да" ? "yes" : rawConditionValue === "Нет" ? "no" : rawConditionValue)
+      : rawConditionValue;
     if (sourceField.type === "yesno" && !["yes","no"].includes(conditionValue)) return false;
     if ((sourceField.type === "select" || sourceField.type === "multiselect") && !sourceField.options.includes(conditionValue)) return false;
     if (sourceField.type === "number" && !Number.isFinite(Number(conditionValue))) return false;
