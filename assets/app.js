@@ -247,6 +247,7 @@
     if(announcement){const news=d.announcements||[];announcement.innerHTML=news.length?'<div class="data-list">'+news.map(n=>'<article class="data-card announcement-card"><div class="data-card-top"><span class="flight-tag">НОВОСТИ</span><span class="muted">'+date(n.sent_at||n.created_at)+'</span></div><h3>'+esc(n.title)+'</h3><p class="data-description">'+esc(n.body)+'</p></article>').join('')+'</div>':'<div class="empty-card"><span class="empty-icon">◌</span><div><strong>Пока нет объявлений</strong><p>Здесь появятся новости и уведомления авиакомпании.</p></div></div>'}
     if(d.admin&&(p.role==='admin'||p.role==='owner'))renderAdmin(d.admin);
     else if(document.getElementById('page-admin')?.classList.contains('active'))openPage('home');
+    window.RoyalFlightCareer?.render(d);
   }
   const modalRoot=document.getElementById('appModal');
   function closeModal(){if(!modalRoot)return;modalRoot.hidden=true;modalRoot.innerHTML='';}
@@ -551,6 +552,6 @@
   document.querySelectorAll('[data-enter-airline]').forEach(button=>{
     button.addEventListener('click',()=>enterPortal(button.dataset.enterAirline));
   });
-  window.RoyalFlightApp={openPage,notify,enterPortal};
+  window.RoyalFlightApp={openPage,notify,enterPortal,call,loadDashboard,getDashboard:()=>dashboard,getAirline:()=>currentAirline,getAirlineName:()=>airline().title,showModal,closeModal,esc,date};
   document.body.classList.add('portal-selecting');
 })();

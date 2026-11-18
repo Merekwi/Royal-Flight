@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./assets/styles.css?v=20261118-refined-gateway">
+<link rel="stylesheet" href="./assets/career.css?v=20261118-career-1">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="portal-selection-active">
@@ -87,6 +88,7 @@
         <button class="shortcut-tile" data-page="flights"><span class="shortcut-icon">✈</span><span><strong>Рейсы</strong><small>Расписание</small></span><b>↗</b></button>
         <button class="shortcut-tile" data-page="miles"><span class="shortcut-icon">✦</span><span><strong>Мили альянса</strong><small>Общий счёт и история</small></span><b>↗</b></button>
         <button class="shortcut-tile" data-page="services"><span class="shortcut-icon">◇</span><span><strong>Привилегии</strong><small>Услуги клуба</small></span><b>↗</b></button>
+        <button class="shortcut-tile" data-page="career"><span class="shortcut-icon">✧</span><span><strong>Карьера</strong><small>Работа в авиакомпании</small></span><b>↗</b></button>
       </div>
 
       <div class="section-heading section-heading-spaced">
@@ -164,7 +166,26 @@
       </div>
     </section>
 
-    <section class="page" id="page-profile">
+    
+    <section class="page" id="page-career">
+      <div class="page-heading page-heading-hero">
+        <p class="eyebrow">CAREERS · ROYAL ALLIANCE</p>
+        <h1>Карьера в авиации</h1>
+        <p class="muted">Станьте частью команды выбранной авиакомпании. Открытые наборы, анкеты и история ваших обращений находятся здесь.</p>
+        <div class="heading-decoration">✧</div>
+      </div>
+      <div class="career-hero">
+        <span class="career-hero-kicker">YOUR NEXT DEPARTURE STARTS HERE</span>
+        <h2>Не просто летайте.<br>Создавайте полёты вместе с нами.</h2>
+        <p>Выберите направление, заполните анкету и следите за статусом рассмотрения прямо в личном кабинете. Все заявки обрабатываются администрацией выбранной авиакомпании.</p>
+        <div class="career-stat-row"><span class="career-stat"><strong>01</strong> Анкета</span><span class="career-stat"><strong>02</strong> Рассмотрение</span><span class="career-stat"><strong>03</strong> Ответ команды</span></div>
+      </div>
+      <div class="career-section-title"><div><p class="eyebrow">OPEN POSITIONS</p><h2>Открытый набор</h2></div><span class="career-status career-status-open" id="careerOpenCount">Загрузка</span></div>
+      <div id="careerOpenings"><div class="career-empty"><span>✧</span><strong>Загружаем вакансии</strong><p>Получаем открытые формы выбранной авиакомпании.</p></div></div>
+      <div class="career-section-title"><div><p class="eyebrow">YOUR APPLICATIONS</p><h2>Мои заявки</h2></div></div>
+      <div id="myCareerApplications"><div class="career-empty"><span>▤</span><strong>Загрузка истории</strong><p>Здесь будут отображаться отправленные анкеты и решения администрации.</p></div></div>
+    </section>
+<section class="page" id="page-profile">
       <div class="page-heading page-heading-hero">
         <p class="eyebrow">YOUR ACCOUNT</p>
         <h1>Личный профиль</h1>
@@ -205,12 +226,14 @@
         <button class="admin-tile" data-admin="flights"><span class="admin-tile-icon">✈</span><strong>Расписание</strong><small>Создать новый рейс</small><b>↗</b></button>
         <button class="admin-tile" data-admin="services"><span class="admin-tile-icon">◇</span><strong>Услуги</strong><small>Цены и привилегии</small><b>↗</b></button>
         <button class="admin-tile" data-admin="notifications"><span class="admin-tile-icon">◉</span><strong>Объявления</strong><small>Новости и рассылки</small><b>↗</b></button>
+        <button class="admin-tile" data-career-admin><span class="admin-tile-icon">✧</span><strong>Карьера</strong><small>Вакансии и анкеты кандидатов</small><b>↗</b></button>
         <button class="admin-tile" data-admin="users"><span class="admin-tile-icon">♙</span><strong>Участники</strong><small>Профили и мили</small><b>↗</b></button>
         <button class="admin-tile" data-admin="settings"><span class="admin-tile-icon">⚙</span><strong>Настройки</strong><small>Оплата и начисления</small><b>↗</b></button>
       </div>
       <div class="admin-data-section" id="adminPayments"></div>
       <div class="admin-data-section" id="adminServices"></div>
       <div class="admin-data-section" id="adminUsers"></div>
+      <div class="admin-data-section" id="adminCareer"></div>
       <p class="footnote">Административные операции выполняются сервером после проверки прав доступа.</p>
     </section>
   </main>
@@ -220,6 +243,7 @@
     <button class="nav-item" data-page="flights"><span>✈</span><small>Рейсы</small></button>
     <button class="nav-item" data-page="miles"><span>✦</span><small>Мили</small></button>
     <button class="nav-item" data-page="services"><span>◇</span><small>Услуги</small></button>
+    <button class="nav-item" data-page="career"><span>✧</span><small>Карьера</small></button>
     <button class="nav-item" data-page="profile"><span>◉</span><small>Профиль</small></button>
     <button class="nav-item nav-item-admin" data-page="admin" id="adminNav" hidden><span>⚙</span><small>Админ</small></button>
   </nav>
@@ -227,5 +251,6 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
 <script src="./assets/app.js?v=20261118-alliance-miles-redemption"></script>
+<script src="./assets/career.js?v=20261118-career-1"></script>
 </body>
 </html>

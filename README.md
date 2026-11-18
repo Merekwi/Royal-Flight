@@ -9,6 +9,7 @@ Telegram Mini App and operations platform for the Royal Flight virtual airline.
 - Passenger flight registration with server-side departure, registration deadline, carrier and seat-capacity checks.
 - Supabase Edge Functions for Telegram WebApp signature validation and trusted API actions.
 - Admin flight creation, service catalogue, payment method management, manual order review, timed subscriptions and renewal by repeat purchase.
+- Airline-scoped Career Centre with a no-code conditional form builder, candidate inbox, status workflow and Telegram status notifications.
 - Unique order numbers for payment comments; users submit “Я оплатил”, and admins approve/reject with a note.
 - Telegram notification delivery plus scheduled messages via GitHub Actions.
 - Roblox account linking through one-time codes, server-validated Roblox identity and miles earned for online minutes in approved game Places.

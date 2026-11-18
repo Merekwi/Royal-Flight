@@ -37,6 +37,111 @@ async function verifyInitData(initData: string, botToken: string) {
 }
 function validText(v: unknown, max=300): v is string { return typeof v === "string" && v.trim().length > 0 && v.length <= max; }
 
+const CAREER_FIELD_TYPES = new Set(["text","textarea","email","number","date","url","select","multiselect","yesno"]);
+function careerRecord(value: unknown): value is Record<string, any> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+function normalizeCareerSchema(raw: any): any | null {
+  if (!careerRecord(raw) || !Array.isArray(raw.sections) || raw.sections.length < 1 || raw.sections.length > 20) return null;
+  const seen = new Set<string>();
+  const sections: any[] = [];
+  let totalFields = 0;
+  const normalizeCondition = (value: any): any | null | false => {
+    if (!value || value.fieldId === "" || value.fieldId === null || value.fieldId === undefined) return null;
+    if (!careerRecord(value) || typeof value.fieldId !== "string" || !seen.has(value.fieldId)) return false;
+    const operator = value.operator === "not_equals" ? "not_equals" : value.operator === "equals" || !value.operator ? "equals" : "";
+    if (!operator || typeof value.value !== "string" || value.value.length > 200) return false;
+    return { fieldId: value.fieldId, operator, value: value.value };
+  };
+  for (const source of raw.sections) {
+    if (!careerRecord(source) || typeof source.id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(source.id) ||
+        sections.some(x => x.id === source.id) || !validText(source.title, 100) ||
+        !Array.isArray(source.fields) || source.fields.length > 40) return null;
+    const sectionCondition = normalizeCondition(source.visibleWhen);
+    if (sectionCondition === false) return null;
+    const fields: any[] = [];
+    for (const field of source.fields) {
+      totalFields++;
+      if (totalFields > 60 || !careerRecord(field) || typeof field.id !== "string" ||
+          !/^[A-Za-z0-9_-]{1,64}$/.test(field.id) || seen.has(field.id) ||
+          !validText(field.label, 150) || !CAREER_FIELD_TYPES.has(field.type)) return null;
+      const condition = normalizeCondition(field.visibleWhen);
+      if (condition === false) return null;
+      let options: string[] = [];
+      if (field.type === "select" || field.type === "multiselect") {
+        if (!Array.isArray(field.options)) return null;
+        options = field.options.map((x: unknown) => typeof x === "string" ? x.trim() : "").filter((x: string) => x.length > 0);
+        if (options.length < 2 || options.length > 20 || options.some((x: string) => x.length > 80) ||
+            new Set(options).size !== options.length) return null;
+      }
+      fields.push({
+        id: field.id, label: field.label.trim(), type: field.type,
+        required: field.required === true,
+        placeholder: typeof field.placeholder === "string" ? field.placeholder.slice(0, 180) : "",
+        options, visibleWhen: condition
+      });
+      seen.add(field.id);
+    }
+    sections.push({
+      id: source.id, title: source.title.trim(),
+      description: typeof source.description === "string" ? source.description.slice(0, 500) : "",
+      visibleWhen: sectionCondition, fields
+    });
+  }
+  if (JSON.stringify({ version: 1, sections }).length > 45000) return null;
+  return { version: 1, sections };
+}
+function careerConditionMatches(condition: any, answers: Record<string, any>): boolean {
+  if (!condition) return true;
+  if (!Object.prototype.hasOwnProperty.call(answers, condition.fieldId)) return false;
+  const answer = answers[condition.fieldId];
+  const matched = Array.isArray(answer) ? answer.map(String).includes(condition.value) : String(answer ?? "") === condition.value;
+  return condition.operator === "not_equals" ? !matched : matched;
+}
+function cleanCareerAnswers(schema: any, raw: any): Record<string, any> | null {
+  if (!careerRecord(raw)) return null;
+  const answers: Record<string, any> = {};
+  for (const section of schema.sections) {
+    if (!careerConditionMatches(section.visibleWhen, answers)) continue;
+    for (const field of section.fields) {
+      if (!careerConditionMatches(field.visibleWhen, answers)) continue;
+      const value = raw[field.id];
+      const blank = value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+      if (blank) {
+        if (field.required) return null;
+        continue;
+      }
+      if (field.type === "text" || field.type === "textarea" || field.type === "email" || field.type === "url") {
+        if (typeof value !== "string" || value.trim().length === 0 || value.length > (field.type === "textarea" ? 4000 : 600)) return null;
+        const normalized = value.trim();
+        if (field.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+        if (field.type === "url") {
+          try { const parsed = new URL(normalized); if (!["http:","https:"].includes(parsed.protocol)) return null; } catch { return null; }
+        }
+        answers[field.id] = normalized;
+      } else if (field.type === "number") {
+        const number = typeof value === "number" ? value : Number(value);
+        if (!Number.isFinite(number)) return null;
+        answers[field.id] = number;
+      } else if (field.type === "date") {
+        if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value))) return null;
+        answers[field.id] = value;
+      } else if (field.type === "select") {
+        if (typeof value !== "string" || !field.options.includes(value)) return null;
+        answers[field.id] = value;
+      } else if (field.type === "multiselect") {
+        if (!Array.isArray(value) || value.length > field.options.length || value.some((x: unknown) => typeof x !== "string" || !field.options.includes(x))) return null;
+        answers[field.id] = Array.from(new Set(value));
+      } else if (field.type === "yesno") {
+        if (value !== "yes" && value !== "no") return null;
+        answers[field.id] = value;
+      }
+    }
+  }
+  return answers;
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -99,7 +204,7 @@ Deno.serve(async (req) => {
 
     if (action === "dashboard") {
       const now = new Date().toISOString();
-      const [flights, services, orders, subscriptions, ledger, announcements, paymentMethods, flightRegistrations] = await Promise.all([
+      const [flights, services, orders, subscriptions, ledger, announcements, paymentMethods, flightRegistrations, careerFormsQuery, myCareerApplicationsQuery] = await Promise.all([
         db.from("rf_flights").select("id,title,flight_number,origin,destination,aircraft,departure_at,registration_deadline,capacity,status,description").eq("airline_code", airlineCode).in("status", ["scheduled","boarding"]).gte("departure_at", now).order("departure_at").limit(20),
         db.from("rf_services").select("id,code,name,description,price,currency,duration_days,payment_mode,roblox_enabled,roblox_gamepass_id,robux_price").eq("airline_code", airlineCode).eq("active", true).order("sort_order"),
         db.from("rf_orders").select("id,order_number,service_id,payment_method_id,amount,currency,status,created_at,paid_at,admin_note,payment_provider,payment_reference").eq("profile_id", profile.id).eq("airline_code", airlineCode).order("created_at", { ascending: false }).limit(20),
@@ -107,9 +212,11 @@ Deno.serve(async (req) => {
         db.from("rf_mile_ledger").select("id,delta,reason,created_at,metadata").eq("profile_id", profile.id).order("created_at", { ascending: false }).limit(30),
         db.from("rf_notifications").select("id,title,body,sent_at,created_at").eq("airline_code", airlineCode).eq("status","sent").order("sent_at", { ascending: false }).limit(10),
         db.from("rf_payment_methods").select("id,label,card_number,recipient_name,instructions").eq("airline_code", airlineCode).eq("active", true).order("created_at"),
-        db.from("rf_flight_registrations").select("id,flight_id,status,created_at").eq("profile_id",profile.id).eq("airline_code",airlineCode).in("status",["registered","checked_in"])
+        db.from("rf_flight_registrations").select("id,flight_id,status,created_at").eq("profile_id",profile.id).eq("airline_code",airlineCode).in("status",["registered","checked_in"]),
+        db.from("rf_career_forms").select("id,title,department,description,schema,status,closes_at,published_at,created_at,updated_at").eq("airline_code",airlineCode).order("created_at",{ascending:false}).limit(100),
+        db.from("rf_career_applications").select("id,form_id,status,admin_note,created_at,updated_at").eq("profile_id",profile.id).eq("airline_code",airlineCode).order("created_at",{ascending:false}).limit(30)
       ]);
-      const err = [flights,services,orders,subscriptions,ledger,announcements,paymentMethods,flightRegistrations].find(x=>x.error);
+      const err = [flights,services,orders,subscriptions,ledger,announcements,paymentMethods,flightRegistrations,careerFormsQuery,myCareerApplicationsQuery].find(x=>x.error);
       if (err) {
         const detail = err.error?.message || "unknown database query error";
         const code = err.error?.code || null;
@@ -124,15 +231,30 @@ Deno.serve(async (req) => {
       }
       let pendingOrders: unknown[] = [];
       let adminUsers: unknown[] = [];
+      let adminCareerApplications: any[] = [];
       if (admin) {
-        const [pending, users, serviceCatalog] = await Promise.all([
+        const [pending, users, serviceCatalog, careerApplicationsQuery] = await Promise.all([
           db.from("rf_orders").select("id,order_number,profile_id,service_id,amount,currency,status,proof_url,user_note,created_at").eq("airline_code", airlineCode).eq("status","awaiting_review").order("created_at"),
           db.from("rf_profiles").select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").order("created_at",{ascending:false}).limit(100),
-          db.from("rf_services").select("id,airline_code,code,name,description,price,currency,duration_days,active,sort_order,payment_mode,roblox_enabled,roblox_gamepass_id,robux_price").eq("airline_code",airlineCode).order("sort_order")
+          db.from("rf_services").select("id,airline_code,code,name,description,price,currency,duration_days,active,sort_order,payment_mode,roblox_enabled,roblox_gamepass_id,robux_price").eq("airline_code",airlineCode).order("sort_order"),
+          db.from("rf_career_applications").select("id,form_id,profile_id,answers,status,admin_note,created_at,updated_at,reviewed_by,reviewed_at").eq("airline_code",airlineCode).order("created_at",{ascending:false}).limit(150)
         ]);
         if (!pending.error) pendingOrders = pending.data || [];
         if (!users.error) adminUsers = users.data || [];
         var adminServiceCatalog = serviceCatalog.error ? [] : (serviceCatalog.data || []);
+        if (careerApplicationsQuery.error) return json({ error: "career_applications_load_failed" }, 503);
+        const appRows = careerApplicationsQuery.data || [];
+        const applicantIds = Array.from(new Set(appRows.map((x: any) => x.profile_id)));
+        const applicantResult = applicantIds.length
+          ? await db.from("rf_profiles").select("id,telegram_id,telegram_username,display_name").in("id",applicantIds)
+          : { data: [], error: null };
+        if (applicantResult.error) return json({ error: "career_applicants_load_failed" }, 503);
+        const applicantById = new Map((applicantResult.data || []).map((x: any) => [x.id,x]));
+        const careerFormById = new Map((careerFormsQuery.data || []).map((x: any) => [x.id,x]));
+        adminCareerApplications = appRows.map((x: any) => ({
+          ...x, applicant: applicantById.get(x.profile_id) || null,
+          form: careerFormById.get(x.form_id) || null
+        }));
       }
       const serviceById = new Map((services.data || []).map((s) => [s.id, s]));
       const activeSubscriptions = (subscriptions.data || []).map((s) => ({ ...s, service: serviceById.get(s.service_id) || null }));
@@ -142,9 +264,17 @@ Deno.serve(async (req) => {
         const roleByProfile = new Map((staff.data || []).map((s) => [s.profile_id, s.role]));
         adminUsers = adminUsers.map((u: any) => ({ ...u, role: u.role === "owner" ? "owner" : (roleByProfile.get(u.id) || "member") }));
       }
+      const careerFormRows = careerFormsQuery.data || [];
+      const openCareerForms = careerFormRows.filter((x: any) => x.status === "open" && (!x.closes_at || Date.parse(x.closes_at) > Date.now()));
+      const careerFormById = new Map(careerFormRows.map((x: any) => [x.id,x]));
+      const myCareerApplications = (myCareerApplicationsQuery.data || []).map((x: any) => {
+        const formInfo: any = careerFormById.get(x.form_id);
+        return { ...x, formTitle: formInfo?.title || "Архивная форма", department: formInfo?.department || null };
+      });
       return json({ airlineCode, profile: portalProfile, flights: flights.data || [], services: services.data || [], orders: orders.data || [],
         subscriptions: activeSubscriptions, flightRegistrations: flightRegistrations.data || [], mileLedger: ledger.data || [], announcements: announcements.data || [], paymentMethods: paymentMethods.data || [],
-        admin: admin ? { pendingOrders, users: adminUsers, services: adminServiceCatalog } : null });
+        careerForms: admin ? careerFormRows : openCareerForms, myCareerApplications,
+        admin: admin ? { pendingOrders, users: adminUsers, services: adminServiceCatalog, careerForms: careerFormRows, careerApplications: adminCareerApplications } : null });
     }
 
     if (action === "register_flight") {
@@ -239,7 +369,138 @@ Deno.serve(async (req) => {
       return json({ order: updated.data });
     }
 
+
+    if (action === "submit_career_application") {
+      const formId = validText(body.formId, 64) ? body.formId : "";
+      if (!formId) return json({ error: "career_form_id_required" }, 400);
+      const formResult = await db.from("rf_career_forms").select("id,title,department,schema,closes_at,status").eq("id",formId).eq("airline_code",airlineCode).eq("status","open").maybeSingle();
+      if (formResult.error || !formResult.data) return json({ error: "career_form_not_open", message: "Приём заявок по этой форме уже закрыт." }, 409);
+      if (formResult.data.closes_at && Date.parse(formResult.data.closes_at) <= Date.now()) return json({ error: "career_deadline_passed", message: "Срок подачи заявок истёк." }, 409);
+      const safeSchema = normalizeCareerSchema(formResult.data.schema);
+      if (!safeSchema || safeSchema.sections.reduce((sum: number, s: any) => sum + s.fields.length, 0) === 0) return json({ error: "career_form_invalid" }, 409);
+      const answers = cleanCareerAnswers(safeSchema, body.answers);
+      if (!answers) return json({ error: "career_answers_invalid", message: "Проверьте обязательные поля и ответы на вопросы анкеты." }, 400);
+      const inserted = await db.from("rf_career_applications").insert({
+        form_id:formId, airline_code:airlineCode, profile_id:profile.id, answers, status:"submitted"
+      }).select("id,status,created_at").single();
+      if (inserted.error) {
+        if (inserted.error.code === "23505") return json({ error: "career_already_applied", message: "Вы уже отправили заявку на эту вакансию." }, 409);
+        console.error("career_application_insert_failed", inserted.error.message);
+        return json({ error: "career_application_failed" }, 500);
+      }
+      await db.from("rf_admin_audit").insert({
+        airline_code:airlineCode, admin_telegram_id:telegram.id, action:"career_application_submitted",
+        entity_type:"career_application", entity_id:inserted.data.id,
+        details:{ form_id:formId, form_title:formResult.data.title }
+      });
+      if (botToken) {
+        const staff = await db.from("rf_airline_staff").select("profile_id").eq("airline_code",airlineCode);
+        const owners = await db.from("rf_profiles").select("id").eq("role","owner");
+        const targetIds = Array.from(new Set([...(staff.data || []).map((x: any) => x.profile_id), ...(owners.data || []).map((x: any) => x.id)]));
+        if (targetIds.length) {
+          const recipients = await db.from("rf_profiles").select("telegram_id").in("id",targetIds);
+          for (const recipient of recipients.data || []) {
+            try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage", {
+              method:"POST", headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({chat_id:recipient.telegram_id,text:"Новая заявка на трудоустройство · "+(airlineCode==="azal"?"AZAL":"Royal Flight")+"\nВакансия: "+formResult.data.title+"\nКандидат: "+(profile.display_name || profile.telegram_username || profile.telegram_id),disable_web_page_preview:true})
+            }); } catch {}
+          }
+        }
+      }
+      return json({ application:inserted.data });
+    }
+
     if (action.startsWith("admin_") && !admin) return json({ error: "admin_required" }, 403);
+
+
+    if (action === "admin_save_career_form") {
+      const f = body.form || {};
+      if (!validText(f.title,120) || !validText(f.department,100) || !validText(f.description,2500)) return json({ error:"career_form_fields_invalid" },400);
+      const safeSchema = normalizeCareerSchema(f.schema);
+      if (!safeSchema) return json({ error:"career_schema_invalid", message:"Проверьте разделы, вопросы и условия отображения. Логика может ссылаться только на вопросы, расположенные выше." },400);
+      const closesAt = validText(f.closesAt,50) && !Number.isNaN(Date.parse(f.closesAt)) ? new Date(f.closesAt).toISOString() : null;
+      const values = {
+        airline_code:airlineCode, title:f.title.trim(), department:f.department.trim(),
+        description:f.description.trim(), schema:safeSchema, closes_at:closesAt,
+        updated_at:new Date().toISOString()
+      };
+      let saved;
+      if (validText(f.id,64)) {
+        const existing = await db.from("rf_career_forms").select("id,status,schema").eq("id",f.id).eq("airline_code",airlineCode).maybeSingle();
+        if (existing.error || !existing.data) return json({ error:"career_form_not_found" },404);
+        const submittedCount = await db.from("rf_career_applications").select("id",{count:"exact",head:true}).eq("form_id",f.id).eq("airline_code",airlineCode);
+        if (submittedCount.error) return json({ error:"career_form_applications_check_failed" },503);
+        if ((submittedCount.count || 0) > 0 && JSON.stringify(existing.data.schema) !== JSON.stringify(safeSchema))
+          return json({ error:"career_schema_locked", message:"В этой форме уже есть отправленные анкеты. Чтобы сохранить их корректное отображение, структура вопросов больше не меняется. Создайте новую форму для следующего набора." },409);
+        saved = await db.from("rf_career_forms").update(values).eq("id",f.id).eq("airline_code",airlineCode).select().single();
+      } else {
+        saved = await db.from("rf_career_forms").insert({...values,status:"draft",created_by:telegram.id}).select().single();
+      }
+      if (saved.error) return json({ error:"career_form_save_failed", detail:saved.error.message },500);
+      await db.from("rf_admin_audit").insert({
+        airline_code:airlineCode, admin_telegram_id:telegram.id,
+        action:validText(f.id,64)?"career_form_updated":"career_form_created",
+        entity_type:"career_form", entity_id:saved.data.id,
+        details:{title:saved.data.title,department:saved.data.department}
+      });
+      return json({ form:saved.data });
+    }
+
+    if (action === "admin_update_career_form_status") {
+      const formId = validText(body.formId,64) ? body.formId : "";
+      const nextStatus = body.status;
+      if (!formId || !["draft","open","closed","archived"].includes(nextStatus)) return json({ error:"invalid_career_form_status" },400);
+      const existing = await db.from("rf_career_forms").select("id,title,schema,closes_at,status").eq("id",formId).eq("airline_code",airlineCode).maybeSingle();
+      if (existing.error || !existing.data) return json({ error:"career_form_not_found" },404);
+      if (nextStatus === "open") {
+        const safeSchema = normalizeCareerSchema(existing.data.schema);
+        if (!safeSchema || safeSchema.sections.reduce((sum: number, s: any) => sum + s.fields.length, 0) === 0)
+          return json({ error:"career_form_empty", message:"Добавьте хотя бы один вопрос перед публикацией." },400);
+        if (existing.data.closes_at && Date.parse(existing.data.closes_at) <= Date.now())
+          return json({ error:"career_deadline_passed", message:"Срок формы уже истёк. Измените дату окончания приёма." },400);
+      }
+      const updated = await db.from("rf_career_forms").update({
+        status:nextStatus, updated_at:new Date().toISOString(),
+        ...(nextStatus === "open" ? {published_at:new Date().toISOString()} : {})
+      }).eq("id",formId).eq("airline_code",airlineCode).select().single();
+      if (updated.error) return json({ error:"career_form_status_failed" },500);
+      await db.from("rf_admin_audit").insert({
+        airline_code:airlineCode, admin_telegram_id:telegram.id, action:"career_form_status_changed",
+        entity_type:"career_form", entity_id:formId, details:{status:nextStatus,title:existing.data.title}
+      });
+      return json({ form:updated.data });
+    }
+
+    if (action === "admin_review_career_application") {
+      const applicationId = validText(body.applicationId,64) ? body.applicationId : "";
+      const nextStatus = body.status;
+      if (!applicationId || !["reviewing","interview","accepted","rejected"].includes(nextStatus))
+        return json({ error:"invalid_career_review" },400);
+      const current = await db.from("rf_career_applications").select("id,profile_id,form_id,status").eq("id",applicationId).eq("airline_code",airlineCode).maybeSingle();
+      if (current.error || !current.data) return json({ error:"career_application_not_found" },404);
+      const note = typeof body.note === "string" ? body.note.trim().slice(0,1200) : "";
+      const updated = await db.from("rf_career_applications").update({
+        status:nextStatus, admin_note:note || null, reviewed_by:telegram.id,
+        reviewed_at:new Date().toISOString(), updated_at:new Date().toISOString()
+      }).eq("id",applicationId).eq("airline_code",airlineCode)
+        .select("id,form_id,profile_id,status,admin_note,created_at,updated_at").single();
+      if (updated.error) return json({ error:"career_review_save_failed" },500);
+      const [candidate, careerForm] = await Promise.all([
+        db.from("rf_profiles").select("telegram_id").eq("id",current.data.profile_id).single(),
+        db.from("rf_career_forms").select("title").eq("id",current.data.form_id).eq("airline_code",airlineCode).single()
+      ]);
+      const labels: Record<string,string> = {reviewing:"Заявка рассматривается",interview:"Приглашение на собеседование",accepted:"Заявка одобрена",rejected:"Заявка отклонена"};
+      if (botToken && candidate.data) {
+        const message = "Обновлён статус вашей заявки · "+(airlineCode==="azal"?"AZAL":"Royal Flight")+"\nВакансия: "+(careerForm.data?.title || "Трудоустройство")+"\nСтатус: "+labels[nextStatus]+(note?"\nКомментарий: "+note:"");
+        try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:candidate.data.telegram_id,text:message,disable_web_page_preview:true})}); } catch {}
+      }
+      await db.from("rf_admin_audit").insert({
+        airline_code:airlineCode, admin_telegram_id:telegram.id, action:"career_application_reviewed",
+        entity_type:"career_application", entity_id:applicationId,
+        details:{status:nextStatus,note:note || null}
+      });
+      return json({ application:updated.data });
+    }
 
     if (action === "admin_review_order") {
       if (!validText(body.orderId,64) || typeof body.paid !== "boolean") return json({ error: "invalid_review" }, 400);
