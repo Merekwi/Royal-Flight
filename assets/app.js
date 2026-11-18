@@ -6,7 +6,7 @@
   const URL='https://iotwbzzlwltjfddrmhvg.supabase.co';
   const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvdHdienpsd2x0amZkZHJtaHZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5NTEwNDksImV4cCI6MjEwODUyNzA0OX0.Bg-ww-s0WVpVwuJymjREB3z6eeY0S_8ZfFE5tnqUYz0';
   function notify(s){toast.textContent=s;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2800);if(tg?.HapticFeedback)tg.HapticFeedback.impactOccurred('light')}
-  function openPage(name){const p=document.getElementById('page-'+name);if(!p)return;pages.forEach(x=>x.classList.toggle('active',x===p));nav.forEach(x=>x.classList.toggle('active',x.dataset.page===name));document.body.classList.toggle('portal-selection-active',name==='portal-select');if(name==='portal-select')document.title='Royal Alliance — выбор портала';window.scrollTo({top:0,behavior:'smooth'});if(tg?.HapticFeedback)tg.HapticFeedback.selectionChanged()}
+  function openPage(name){const gateway=document.getElementById('portalGateway');if(name==='portal-select'){if(gateway)gateway.hidden=false;document.body.classList.add('portal-selecting');document.title='Royal Alliance — выбор портала';pages.forEach(x=>x.classList.remove('active'));nav.forEach(x=>x.classList.remove('active'));window.scrollTo({top:0,behavior:'smooth'});if(tg?.HapticFeedback)tg.HapticFeedback.selectionChanged();return}const p=document.getElementById('page-'+name);if(!p)return;if(gateway)gateway.hidden=true;document.body.classList.remove('portal-selecting','portal-selection-active');pages.forEach(x=>x.classList.toggle('active',x===p));nav.forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(tg?.HapticFeedback)tg.HapticFeedback.selectionChanged()}
   document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>openPage(x.dataset.page)));
   document.getElementById('profileShortcut')?.addEventListener('click',()=>openPage('profile'));
   const airlines={
@@ -510,7 +510,7 @@
     resetPortalData();
     const gateway=document.getElementById('portalGateway');
     if(gateway)gateway.hidden=true;
-    document.body.classList.remove('portal-selecting');
+    document.body.classList.remove('portal-selecting','portal-selection-active');
     openPage('home');
     await signIn();
   }
