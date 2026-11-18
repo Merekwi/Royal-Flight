@@ -186,7 +186,18 @@
     const linkBtn=document.getElementById('robloxLinkButton');if(linkBtn){linkBtn.hidden=!!p.roblox_username;document.getElementById('robloxProfileState').textContent=p.roblox_username?'Привязан':'Не подключён';}
     const ledgerBox=document.getElementById('mileLedger');if(ledgerBox){const ledger=d.mileLedger||[];ledgerBox.innerHTML=ledger.length?'<div class="data-list">'+ledger.map(x=>'<article class="data-card ledger-card"><div><strong>'+esc(x.reason==='roblox_online_minutes'?'Время на сервере Roblox':x.reason)+'</strong><p class="muted">'+date(x.created_at)+'</p></div><strong class="ledger-delta">'+(Number(x.delta)>0?'+':'')+Number(x.delta).toLocaleString('ru-RU')+'</strong></article>').join('')+'</div>':'<div class="empty-state compact"><div class="empty-orbit">↻</div><h3>Операций пока нет</h3><p>Начисления и списания будут отображаться здесь.</p></div>'}
     const fc=document.getElementById('flightCatalog');
-    if(fc){fc.innerHTML=d.flights?.length?'<div class="data-list">'+d.flights.map(f=>'<article class="data-card"><div class="data-card-top"><span class="flight-tag">'+esc(f.flight_number||airline().flightTag)+'</span><span class="muted">'+esc(date(f.departure_at))+'</span></div><h3>'+esc(f.title)+'</h3><div class="route-line"><strong>'+esc(f.origin)+'</strong><span>✈ ─── ✈</span><strong>'+esc(f.destination)+'</strong></div><p class="muted">'+esc(f.aircraft||'Самолёт уточняется')+'</p>'+(f.description?'<p class="data-description">'+esc(f.description)+'</p>':'')+'</article>').join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">✈</div><h3>Расписание готовится</h3><p>Когда администрация опубликует рейсы, они появятся здесь.</p></div>'}
+    if(fc){
+      const registrations=d.flightRegistrations||[];
+      fc.innerHTML=d.flights?.length?'<div class="data-list">'+d.flights.map(f=>{
+        const registration=registrations.find(r=>r.flight_id===f.id);
+        const canRegister=!registration&&['scheduled','boarding'].includes(f.status);
+        const action=registration
+          ?'<span class="flight-registration-state">Вы записаны</span>'
+          :canRegister?'<button class="primary-button" data-register-flight="'+esc(f.id)+'">Записаться на рейс</button>':'<span class="flight-registration-closed">Запись закрыта</span>';
+        return '<article class="data-card flight-data-card"><div class="data-card-top"><span class="flight-tag">'+esc(f.flight_number||airline().flightTag)+'</span><span class="muted">'+esc(date(f.departure_at))+'</span></div><h3>'+esc(f.title)+'</h3><div class="route-line"><strong>'+esc(f.origin)+'</strong><span>✈ ─── ✈</span><strong>'+esc(f.destination)+'</strong></div><p class="muted">'+esc(f.aircraft||'Самолёт уточняется')+'</p>'+(f.description?'<p class="data-description">'+esc(f.description)+'</p>':'')+'<div class="flight-registration-row">'+action+'</div></article>';
+      }).join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">✈</div><h3>Расписание '+esc(airline().title)+' пока пусто</h3><p>Когда администрация опубликует рейсы, они появятся здесь.</p></div>';
+      fc.querySelectorAll('[data-register-flight]').forEach(b=>b.addEventListener('click',()=>registerForFlight(b.dataset.registerFlight,b)));
+    }
     const activeBox=document.getElementById('activeSubscriptions');
     if(activeBox){
       const active=d.subscriptions||[];
@@ -223,6 +234,25 @@
       const value=b.dataset.copy||'';
       try{await navigator.clipboard.writeText(value);notify('Скопировано')}catch(_){const input=document.createElement('textarea');input.value=value;document.body.appendChild(input);input.select();try{document.execCommand('copy');notify('Скопировано')}catch(__){notify('Не удалось скопировать')}input.remove()}
     }));
+  }
+  async function registerForFlight(flightId,button){
+    if(!flightId)return;
+    if(button){button.disabled=true;button.textContent='Записываем…'}
+    try{
+      const result=await call('register_flight',{flightId});
+      notify(result.registration?.already_registered?'Вы уже записаны на этот рейс.':'Вы успешно записаны на рейс.');
+      await loadDashboard();
+    }catch(e){
+      if(button){button.disabled=false;button.textContent='Записаться на рейс'}
+      const messages={
+        flight_full:'На рейсе больше нет свободных мест.',
+        registration_closed:'Регистрация на этот рейс закрыта.',
+        registration_deadline_passed:'Срок регистрации на рейс завершён.',
+        flight_already_departed:'Регистрация невозможна: рейс уже отправился.',
+        flight_not_found:'Рейс больше недоступен.'
+      };
+      notify(messages[e.payload?.error]||e.message||'Не удалось записаться на рейс.');
+    }
   }
   async function createOrder(serviceId){
     const methods=dashboard?.paymentMethods||[];
