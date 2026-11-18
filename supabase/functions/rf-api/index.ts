@@ -291,6 +291,7 @@ Deno.serve(async (req) => {
       if(!validText(n.title,120)||!validText(n.body,2000))return json({error:"invalid_notification"},400);
       const scheduledAt=validText(n.scheduledAt,50)&&!Number.isNaN(Date.parse(n.scheduledAt))?new Date(n.scheduledAt).toISOString():null;
       const audience=["all","admins","roblox_linked","active_service"].includes(n.audience)?n.audience:"all";
+      if(airlineCode!=="royal"&&audience==="roblox_linked")return json({error:"feature_not_available_for_airline"},403);
       const result=await db.from("rf_notifications").insert({airline_code:airlineCode,title:n.title.trim(),body:n.body.trim(),audience,scheduled_at:scheduledAt,status:scheduledAt?"scheduled":"draft",created_by:telegram.id}).select().single();
       if(result.error)return json({error:"notification_save_failed"},500);
       let delivery={sent:0,failed:0};
@@ -307,6 +308,7 @@ Deno.serve(async (req) => {
         if(audience==="roblox_linked")selected=selected.filter(x=>x.roblox_user_id!==null);
         if(audience==="active_service"){
           const active=await db.from("rf_subscriptions").select("profile_id").eq("airline_code", airlineCode).eq("status","active").gt("ends_at",new Date().toISOString());
+          if(active.error)return json({error:"notification_active_service_lookup_failed"},503);
           const ids=new Set((active.data||[]).map(x=>x.profile_id));selected=selected.filter(x=>ids.has(x.id));
         }
         if(!botToken)return json({error:"telegram_bot_not_configured",notification:result.data},503);
