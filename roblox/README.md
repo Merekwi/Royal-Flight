@@ -4,7 +4,7 @@
 - A one-time code generated in the Telegram Mini App and entered in the Royal Flight Roblox game.
 - Roblox identity is taken from the server-side `Player.UserId` and `Player.Name`, not from a user-submitted username.
 - The server sends a heartbeat every 60 seconds while the player remains in the approved game Place.
-- The backend credits complete minutes only. Current default: 10 Royal Flight Roblox miles per credited minute; the alliance owner can change the rate in the Royal Flight portal.
+- The backend credits complete minutes only. Current default: 10 Royal Flight Roblox miles per credited minute; a Royal Flight portal admin can change the rate in that portal.
 - Roblox mileage is credited to the one shared Royal Alliance wallet and is visible in every member airline portal.
 - Roblox is currently a Royal Flight integration, not an AZAL feature.
 
