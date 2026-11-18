@@ -29,6 +29,16 @@ Deno.serve(async(req)=>{
         continue;
       }
       let recipients=profiles.data||[];
+      if(notification.audience==="all"||notification.audience==="roblox_linked"){
+        const memberships=await db.from("rf_airline_memberships").select("profile_id").eq("airline_code",notification.airline_code);
+        if(memberships.error){
+          failedCount++;
+          await db.from("rf_notifications").update({status:"scheduled"}).eq("id",notification.id).eq("airline_code",notification.airline_code);
+          continue;
+        }
+        const memberIds=new Set((memberships.data||[]).map(p=>p.profile_id));
+        recipients=recipients.filter(p=>memberIds.has(p.id));
+      }
       if(notification.audience==="admins"){
         const [staff,owners]=await Promise.all([
           db.from("rf_airline_staff").select("profile_id").eq("airline_code",notification.airline_code),
