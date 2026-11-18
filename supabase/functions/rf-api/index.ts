@@ -610,6 +610,16 @@ Deno.serve(async (req) => {
       if (passId && !/^[1-9][0-9]{0,19}$/.test(passId)) return json({error:"invalid_roblox_gamepass_id"},400);
       if (robuxRaw !== null && (!Number.isSafeInteger(robuxRaw) || robuxRaw <= 0)) return json({error:"invalid_robux_price"},400);
       if (paymentMode !== "manual_only" && (!passId || robuxRaw === null)) return json({error:"roblox_gamepass_configuration_required",message:"Для оплаты через Robux укажите Game Pass ID и цену."},400);
+      if (passId) {
+        let duplicateQuery = db.from("rf_services").select("id,name,airline_code").eq("roblox_gamepass_id",passId);
+        if (validText(s.id,64)) duplicateQuery = duplicateQuery.neq("id",s.id);
+        const duplicate = await duplicateQuery.limit(1).maybeSingle();
+        if (duplicate.error) return json({error:"gamepass_duplicate_check_failed"},503);
+        if (duplicate.data) return json({
+          error:"gamepass_id_in_use",
+          message:"Этот Game Pass ID уже назначен услуге «"+duplicate.data.name+"» в портале "+(duplicate.data.airline_code==="azal"?"AZAL":"Royal Flight")+". Укажите другой ID."
+        },409);
+      }
       const values={airline_code:airlineCode,code:s.code.trim().toUpperCase(),name:s.name.trim(),description:typeof s.description==="string"?s.description.slice(0,1000):null,
         price:Number(s.price),currency:validText(s.currency,6)?s.currency.toUpperCase():"RUB",duration_days:Number(s.durationDays),active:s.active!==false,sort_order:Number.isInteger(s.sortOrder)?s.sortOrder:0,
         payment_mode:paymentMode,roblox_enabled:robloxEnabled,roblox_gamepass_id:passId||null,robux_price:robuxRaw,updated_at:new Date().toISOString()};
