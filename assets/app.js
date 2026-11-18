@@ -199,7 +199,7 @@
     document.getElementById('robloxStatus').textContent=airline().roblox?(p.roblox_username?'Roblox: '+p.roblox_username:'Roblox не привязан'):'Участник Royal Alliance';
     document.getElementById('robloxProfileText').textContent=p.roblox_username||'Не привязан';
     const linkBtn=document.getElementById('robloxLinkButton');if(linkBtn){linkBtn.hidden=!!p.roblox_username;document.getElementById('robloxProfileState').textContent=p.roblox_username?'Привязан':'Не подключён';}
-    const ledgerBox=document.getElementById('mileLedger');if(ledgerBox){const ledger=d.mileLedger||[];ledgerBox.innerHTML=ledger.length?'<div class="data-list">'+ledger.map(x=>'<article class="data-card ledger-card"><div><strong>'+esc(x.reason==='roblox_online_minutes'?'Время на сервере Roblox':x.reason)+'</strong><p class="muted">'+date(x.created_at)+'</p></div><strong class="ledger-delta">'+(Number(x.delta)>0?'+':'')+Number(x.delta).toLocaleString('ru-RU')+'</strong></article>').join('')+'</div>':'<div class="empty-state compact"><div class="empty-orbit">↻</div><h3>Операций пока нет</h3><p>Начисления и списания будут отображаться здесь.</p></div>'}
+    const ledgerBox=document.getElementById('mileLedger');if(ledgerBox){const ledger=d.mileLedger||[];ledgerBox.innerHTML=ledger.length?'<div class="data-list">'+ledger.map(x=>'<article class="data-card ledger-card"><div><strong>'+esc(x.reason==='roblox_online_minutes'?'Время в Roblox':x.reason==='service_purchase'?'Оплата услуги милями':x.reason)+'</strong><p class="muted">'+date(x.created_at)+'</p></div><strong class="ledger-delta">'+(Number(x.delta)>0?'+':'')+Number(x.delta).toLocaleString('ru-RU')+'</strong></article>').join('')+'</div>':'<div class="empty-state compact"><div class="empty-orbit">↻</div><h3>Операций пока нет</h3><p>Начисления и списания будут отображаться здесь.</p></div>'}
     const fc=document.getElementById('flightCatalog');
     if(fc){
       const registrations=d.flightRegistrations||[];
@@ -229,15 +229,18 @@
         const paymentLabel=mode==='roblox_only'?'ТОЛЬКО ROBUX':mode==='both'?'ОБА СПОСОБА':'ОБЫЧНАЯ ОПЛАТА';
         const robloxInfo=robuxAllowed?'<p class="service-roblox-pass">Оплата через Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux. Нажмите кнопку, чтобы перейти в игру Royal Flight и завершить покупку там.</p>':'';
         const manualPrice=manualAllowed?money(s.price,s.currency):'';
-        const buttons=(manualAllowed?'<button class="primary-button" data-buy="'+esc(s.id)+'">Оформить обычную оплату</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<button type="button" class="primary-button service-roblox-button" data-buy-roblox="1">Перейти в игру для оплаты ↗</button>':'');
+        const milesCost=s.currency==='RUB'&&Number(s.price)>0?Math.ceil(Number(s.price)*10):null;
+        const milesInfo=milesCost!==null?'<p class="data-description">Можно оплатить милями: '+milesCost.toLocaleString('ru-RU')+' миль · 10 миль = 1 ₽</p>':'';
+        const showCheckout=manualAllowed||milesCost!==null;
+        const buttons=(showCheckout?'<button class="primary-button" data-buy="'+esc(s.id)+'">'+(manualAllowed?'Выбрать способ оплаты':'Оплатить милями')+'</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<button type="button" class="primary-button service-roblox-button" data-buy-roblox="1">Перейти в игру для оплаты ↗</button>':'');
         const bothLink=mode==='both'&&robuxAllowed?'<button type="button" class="secondary-button service-roblox-button" data-buy-roblox="1">Перейти в игру для оплаты ↗</button>':'';
-        return '<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><div class="service-payment-mode">'+paymentLabel+'</div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||airline().serviceDescription)+'</p>'+robloxInfo+'<div class="service-buy-row">'+(manualAllowed?'<strong>'+manualPrice+'</strong>':'<strong>'+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</strong>')+buttons+bothLink+'</div></article>';
+        return '<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><div class="service-payment-mode">'+paymentLabel+'</div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||airline().serviceDescription)+'</p>'+robloxInfo+milesInfo+'<div class="service-buy-row">'+(manualAllowed?'<strong>'+manualPrice+'</strong>':(milesCost===null?'<strong>'+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</strong>':''))+buttons+bothLink+'</div></article>';
       }).join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог '+esc(airline().title)+' пока пуст</h3><p>Администрация добавит сюда услуги этой авиакомпании.</p></div>';
       sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)));
       sc.querySelectorAll('[data-buy-roblox]').forEach(b=>b.addEventListener('click',openRobloxPortal));
     }
     const oh=document.getElementById('ordersHistory');
-    if(oh){const orders=d.orders||[];oh.innerHTML='<h2 class="subheading orders-heading">Мои заказы</h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>{const labels={awaiting_payment:'Ожидает оплаты',awaiting_review:'На проверке',paid:'Оплачен',rejected:'Отклонён',cancelled:'Отменён'};return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-'+esc(o.status)+'">'+esc(labels[o.status]||o.status)+'</span></div><p class="muted">'+(o.payment_provider==='roblox_gamepass'?Number(o.amount).toLocaleString('ru-RU')+' Robux · оплачено в Roblox':money(o.amount,o.currency))+' · '+date(o.created_at)+'</p>'+(o.admin_note?'<p class="data-description">'+esc(o.admin_note)+'</p>':'')+(o.status==='awaiting_payment'?'<div class="button-row"><button class="secondary-button" data-show-payment="'+esc(o.id)+'">Реквизиты</button><button class="primary-button" data-mark-paid="'+esc(o.id)+'">Я оплатил</button></div>':'')+'</article>'}).join('')+'</div>':'<div class="empty-card"><span class="empty-icon">▣</span><div><strong>Заказов пока нет</strong><p>Оформленные услуги появятся здесь.</p></div></div>');oh.querySelectorAll('[data-mark-paid]').forEach(b=>b.addEventListener('click',()=>markPaid(b.dataset.markPaid)));oh.querySelectorAll('[data-show-payment]').forEach(b=>b.addEventListener('click',()=>showPayment(b.dataset.showPayment)))}
+    if(oh){const orders=d.orders||[];oh.innerHTML='<h2 class="subheading orders-heading">Мои заказы</h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>{const labels={awaiting_payment:'Ожидает оплаты',awaiting_review:'На проверке',paid:'Оплачен',rejected:'Отклонён',cancelled:'Отменён'};return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-'+esc(o.status)+'">'+esc(labels[o.status]||o.status)+'</span></div><p class="muted">'+(o.payment_provider==='roblox_gamepass'?Number(o.amount).toLocaleString('ru-RU')+' Robux · оплачено в Roblox':o.payment_provider==='miles'?Math.ceil(Number(o.amount)*10).toLocaleString('ru-RU')+' миль · оплачено милями':money(o.amount,o.currency))+' · '+date(o.created_at)+'</p>'+(o.admin_note?'<p class="data-description">'+esc(o.admin_note)+'</p>':'')+(o.status==='awaiting_payment'?'<div class="button-row"><button class="secondary-button" data-show-payment="'+esc(o.id)+'">Реквизиты</button><button class="primary-button" data-mark-paid="'+esc(o.id)+'">Я оплатил</button></div>':'')+'</article>'}).join('')+'</div>':'<div class="empty-card"><span class="empty-icon">▣</span><div><strong>Заказов пока нет</strong><p>Оформленные услуги появятся здесь.</p></div></div>');oh.querySelectorAll('[data-mark-paid]').forEach(b=>b.addEventListener('click',()=>markPaid(b.dataset.markPaid)));oh.querySelectorAll('[data-show-payment]').forEach(b=>b.addEventListener('click',()=>showPayment(b.dataset.showPayment)))}
     const homeFlight=document.getElementById('homeFlightPreview');
     if(homeFlight){const next=(d.flights||[])[0];homeFlight.innerHTML=next?'<article class="home-flight-card"><div class="home-flight-top"><span class="flight-tag">'+esc(next.flight_number||airline().flightTag)+'</span><span class="muted">'+esc(date(next.departure_at))+'</span></div><div class="home-route"><div><strong>'+esc(next.origin)+'</strong><small>ОТПРАВЛЕНИЕ</small></div><span class="home-route-plane">✈</span><div><strong>'+esc(next.destination)+'</strong><small>ПРИБЫТИЕ</small></div></div><div class="home-flight-bottom"><span>'+esc(next.aircraft||'Самолёт уточняется')+'</span><button class="text-link" data-page="flights">Все рейсы&nbsp; ↗</button></div></article>':'<div class="home-flight-empty"><span class="home-flight-empty-icon">✈</span><div><strong>Пока нет запланированных рейсов</strong><p>Новые вылеты появятся здесь после публикации расписания.</p></div><button class="text-link" data-page="flights">Расписание&nbsp; ↗</button></div>';homeFlight.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>openPage(b.dataset.page)))}
     const announcement=document.getElementById('announcementList');
@@ -291,13 +294,37 @@
     window.open(placeUrl,'_blank','noopener');
   }
   async function createOrder(serviceId){
-    const methods=dashboard?.paymentMethods||[];
-    if(!methods.length){notify('Администрация ещё не добавила реквизиты оплаты.');return}
-    const content='<div class="payment-choice-list">'+methods.map((m,i)=>'<label class="payment-choice"><input type="radio" name="paymentChoice" value="'+esc(m.id)+'" '+(i===0?'checked':'')+'><span class="payment-choice-mark"></span><span><strong>'+esc(m.label)+'</strong><small>'+esc(m.recipient_name||'Получатель не указан')+'</small></span><span class="payment-choice-arrow">›</span></label>').join('')+'</div>';
-    showModal({title:'Способ оплаты',subtitle:'Выберите удобный способ для оформления заказа.',content,actions:[{label:'Отмена',onClick:closeModal},{label:'Продолжить',primary:true,onClick:async()=>{
+    const service=(dashboard?.services||[]).find(s=>s.id===serviceId);
+    const allMethods=dashboard?.paymentMethods||[];
+    const methods=service?.payment_mode==='roblox_only'?[]:allMethods;
+    const milesCost=service&&service.currency==='RUB'&&Number(service.price)>0?Math.ceil(Number(service.price)*10):null;
+    const milesBalance=Number(dashboard?.profile?.miles||0);
+    const milesAvailable=milesCost!==null&&milesBalance>=milesCost;
+    if(!methods.length&&milesCost===null){notify('Для этой услуги нет доступного способа оплаты.');return}
+    if(!methods.length&&milesCost!==null&&!milesAvailable){notify('Недостаточно миль. Нужно '+milesCost.toLocaleString('ru-RU')+', у вас '+milesBalance.toLocaleString('ru-RU')+'.');return}
+    const methodChoices=methods.map((m,i)=>'<label class="payment-choice"><input type="radio" name="paymentChoice" value="'+esc(m.id)+'" '+(i===0?'checked':'')+'><span class="payment-choice-mark"></span><span><strong>'+esc(m.label)+'</strong><small>'+esc(m.recipient_name||'Получатель не указан')+'</small></span><span class="payment-choice-arrow">›</span></label>').join('');
+    const milesChoice=milesCost!==null?'<label class="payment-choice"><input type="radio" name="paymentChoice" value="miles" '+(!methods.length&&milesAvailable?'checked':'')+' '+(!milesAvailable?'disabled':'')+'><span class="payment-choice-mark"></span><span><strong>Оплатить милями · '+milesCost.toLocaleString('ru-RU')+' миль</strong><small>Курс 10 миль = 1 ₽ · баланс '+milesBalance.toLocaleString('ru-RU')+(milesAvailable?'':' · не хватает '+(milesCost-milesBalance).toLocaleString('ru-RU'))+'</small></span><span class="payment-choice-arrow">›</span></label>':'';
+    const content='<div class="payment-choice-list">'+methodChoices+milesChoice+'</div>';
+    const redemptionRequestKey=crypto.randomUUID();
+    showModal({title:'Способ оплаты',subtitle:'Выберите обычную оплату или используйте общий баланс Royal Alliance Miles.',content,actions:[{label:'Отмена',onClick:closeModal},{label:'Продолжить',primary:true,onClick:async()=>{
       const chosen=modalRoot.querySelector('input[name="paymentChoice"]:checked')?.value;
-      const method=methods.find(m=>m.id===chosen);if(!method){notify('Выберите способ оплаты');return}
-      const next=modalRoot.querySelector('[data-modal-action="1"]');if(next){next.disabled=true;next.textContent='Создаём заказ…'}
+      const next=modalRoot.querySelector('[data-modal-action="1"]');if(next){next.disabled=true;next.textContent='Проводим оплату…'}
+      if(chosen==='miles'){
+        try{
+          const x=await call('redeem_miles',{serviceId,requestKey:redemptionRequestKey});
+          const r=x.redemption||{};
+          closeModal();await loadDashboard();openPage('services');
+          showModal({title:'Оплата милями прошла',subtitle:'Услуга активирована автоматически.',content:'<div class="payment-summary"><span>Списано с общего баланса</span><strong>'+Number(r.miles_spent||milesCost).toLocaleString('ru-RU')+' миль</strong><small>Заказ '+esc(r.order_number||'')+'</small></div><div class="payment-detail-list"><div class="payment-detail"><span>Остаток миль</span><strong>'+Number(r.remaining_miles??0).toLocaleString('ru-RU')+'</strong></div>'+(r.ends_at?'<div class="payment-detail"><span>Услуга действует до</span><strong>'+esc(date(r.ends_at))+'</strong></div>':'')+'</div><p class="modal-hint">10 миль = 1 ₽. Оплата списана один раз, услуга уже подключена.</p>',actions:[{label:'Готово',primary:true,onClick:closeModal}]});
+        }catch(e){
+          if(next){next.disabled=false;next.textContent='Продолжить'}
+          const code=e.payload?.error;
+          const message=code==='insufficient_miles'?'Недостаточно миль на балансе.':code==='miles_payment_requires_rub'?'Оплата милями пока доступна только для услуг с ценой в рублях.':code==='miles_payment_unavailable'?'Оплата милями для этой услуги недоступна.':e.message;
+          notify(message);
+        }
+        return;
+      }
+      const method=methods.find(m=>m.id===chosen);
+      if(!method){if(next){next.disabled=false;next.textContent='Продолжить'}notify('Выберите способ оплаты');return}
       try{
         const x=await call('create_order',{serviceId,paymentMethodId:method.id}),o=x.order;
         closeModal();await loadDashboard();openPage('services');
