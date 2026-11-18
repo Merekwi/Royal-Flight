@@ -6,7 +6,7 @@
   const URL='https://iotwbzzlwltjfddrmhvg.supabase.co';
   const KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlvdHdienpsd2x0amZkZHJtaHZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5NTEwNDksImV4cCI6MjEwODUyNzA0OX0.Bg-ww-s0WVpVwuJymjREB3z6eeY0S_8ZfFE5tnqUYz0';
   function notify(s){toast.textContent=s;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2800);if(tg?.HapticFeedback)tg.HapticFeedback.impactOccurred('light')}
-  function openPage(name){const p=document.getElementById('page-'+name);if(!p)return;pages.forEach(x=>x.classList.toggle('active',x===p));nav.forEach(x=>x.classList.toggle('active',x.dataset.page===name));window.scrollTo({top:0,behavior:'smooth'});if(tg?.HapticFeedback)tg.HapticFeedback.selectionChanged()}
+  function openPage(name){const p=document.getElementById('page-'+name);if(!p)return;pages.forEach(x=>x.classList.toggle('active',x===p));nav.forEach(x=>x.classList.toggle('active',x.dataset.page===name));document.body.classList.toggle('portal-selection-active',name==='portal-select');if(name==='portal-select')document.title='Royal Alliance — выбор портала';window.scrollTo({top:0,behavior:'smooth'});if(tg?.HapticFeedback)tg.HapticFeedback.selectionChanged()}
   document.querySelectorAll('[data-page]').forEach(x=>x.addEventListener('click',()=>openPage(x.dataset.page)));
   document.getElementById('profileShortcut')?.addEventListener('click',()=>openPage('profile'));
   const airlines={
@@ -44,12 +44,23 @@
   const selectedAirline=(()=>{try{return localStorage.getItem('rf_selected_airline')||'royal'}catch(_){return 'royal'}})();
   currentAirline=airlines[selectedAirline]?selectedAirline:'royal';
   applyAirline(currentAirline);
+  async function enterPortal(key){
+    const next=airlines[key]?key:'royal';
+    currentAirline=next;
+    authGeneration++;
+    dashboard=null;
+    applyAirline(currentAirline);
+    resetPortalData();
+    openPage('home');
+    await signIn();
+  }
   airlineSelect?.addEventListener('change',async()=>{
     const next=airlines[airlineSelect.value]?airlineSelect.value:'royal';
     if(next===currentAirline)return;
-    currentAirline=next;authGeneration++;dashboard=null;applyAirline(currentAirline);resetPortalData();
-    notify('Открываем отдельный портал '+airlines[currentAirline].title+'…');
-    await signIn();
+    await enterPortal(next);
+  });
+  document.querySelectorAll('[data-portal]').forEach(button=>{
+    button.addEventListener('click',()=>enterPortal(button.dataset.portal));
   });
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const date=v=>v?new Date(v).toLocaleString('ru-RU',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
