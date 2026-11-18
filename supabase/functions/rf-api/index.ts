@@ -76,6 +76,13 @@ Deno.serve(async (req) => {
     const isOwner = profile.role === "owner";
     const airlineRole = isOwner ? "owner" : (staffMembership.data?.role || "member");
     const portalProfile = { ...profile, role: airlineRole };
+    const membership = await db.from("rf_airline_memberships").upsert({
+      profile_id:profile.id,airline_code:airlineCode,last_active_at:new Date().toISOString()
+    },{onConflict:"profile_id,airline_code"});
+    if(membership.error){
+      console.error("airline_membership_upsert_failed",membership.error.message);
+      return json({error:"airline_membership_unavailable"},503);
+    }
     const admin = isOwner || airlineRole === "admin";
     const action = body.action;
 
@@ -299,6 +306,12 @@ Deno.serve(async (req) => {
         const targets=await db.from("rf_profiles").select("telegram_id,role,roblox_user_id,id");
         if(targets.error)return json({error:"notification_targets_failed"},500);
         let selected=targets.data||[];
+        if(audience==="all"||audience==="roblox_linked"){
+          const memberships=await db.from("rf_airline_memberships").select("profile_id").eq("airline_code",airlineCode);
+          if(memberships.error)return json({error:"notification_membership_lookup_failed"},503);
+          const memberIds=new Set((memberships.data||[]).map(x=>x.profile_id));
+          selected=selected.filter(x=>memberIds.has(x.id));
+        }
         if(audience==="admins"){
           const staff=await db.from("rf_airline_staff").select("profile_id").eq("airline_code",airlineCode);
           if(staff.error)return json({error:"notification_staff_lookup_failed"},503);
