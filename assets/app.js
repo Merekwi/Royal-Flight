@@ -209,7 +209,20 @@
         :'<div class="empty-card active-subscription-empty"><span class="empty-icon">✦</span><div><strong>Пока нет активных привилегий</strong><p>После подтверждения оплаты услуга появится здесь</p></div></div>';
     }
     const sc=document.getElementById('serviceCatalog');
-    if(sc){sc.innerHTML=d.services?.length?'<div class="service-list">'+d.services.map(s=>{const robloxInfo=s.roblox_enabled&&s.roblox_gamepass_id&&s.robux_price?'<p class="service-roblox-pass">Продление доступно в Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux · <a href="https://www.roblox.com/game-pass/'+esc(s.roblox_gamepass_id)+'" target="_blank" rel="noopener">текущий Game Pass</a></p>':'';return '<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||airline().serviceDescription)+'</p>'+robloxInfo+'<div class="service-buy-row"><strong>'+money(s.price,s.currency)+'</strong><button class="primary-button" data-buy="'+esc(s.id)+'">Оформить</button></div></article>'}).join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог '+esc(airline().title)+' пока пуст</h3><p>Администрация добавит сюда услуги этой авиакомпании.</p></div>';sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)))}
+    if(sc){
+      sc.innerHTML=d.services?.length?'<div class="service-list">'+d.services.map(s=>{
+        const mode=s.payment_mode||'manual_only';
+        const robuxAllowed=(mode==='roblox_only'||mode==='both')&&s.roblox_enabled&&s.roblox_gamepass_id&&s.robux_price;
+        const manualAllowed=mode==='manual_only'||mode==='both';
+        const paymentLabel=mode==='roblox_only'?'ТОЛЬКО ROBUX':mode==='both'?'ОБА СПОСОБА':'ОБЫЧНАЯ ОПЛАТА';
+        const robloxInfo=robuxAllowed?'<p class="service-roblox-pass">Оплата в Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux · <a href="https://www.roblox.com/game-pass/'+esc(s.roblox_gamepass_id)+'" target="_blank" rel="noopener">открыть Game Pass</a></p>':'';
+        const manualPrice=manualAllowed?money(s.price,s.currency):'';
+        const buttons=(manualAllowed?'<button class="primary-button" data-buy="'+esc(s.id)+'">Оформить обычную оплату</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<a class="primary-button service-roblox-button" href="https://www.roblox.com/game-pass/'+esc(s.roblox_gamepass_id)+'" target="_blank" rel="noopener">Купить за Robux ↗</a>':'');
+        const bothLink=mode==='both'&&robuxAllowed?'<a class="secondary-button service-roblox-button" href="https://www.roblox.com/game-pass/'+esc(s.roblox_gamepass_id)+'" target="_blank" rel="noopener">Оплатить Robux ↗</a>':'';
+        return '<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><div class="service-payment-mode">'+paymentLabel+'</div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||airline().serviceDescription)+'</p>'+robloxInfo+'<div class="service-buy-row">'+(manualAllowed?'<strong>'+manualPrice+'</strong>':'<strong>'+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</strong>')+buttons+bothLink+'</div></article>';
+      }).join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог '+esc(airline().title)+' пока пуст</h3><p>Администрация добавит сюда услуги этой авиакомпании.</p></div>';
+      sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)));
+    }
     const oh=document.getElementById('ordersHistory');
     if(oh){const orders=d.orders||[];oh.innerHTML='<h2 class="subheading orders-heading">Мои заказы</h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>{const labels={awaiting_payment:'Ожидает оплаты',awaiting_review:'На проверке',paid:'Оплачен',rejected:'Отклонён',cancelled:'Отменён'};return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-'+esc(o.status)+'">'+esc(labels[o.status]||o.status)+'</span></div><p class="muted">'+(o.payment_provider==='roblox_gamepass'?Number(o.amount).toLocaleString('ru-RU')+' Robux · оплачено в Roblox':money(o.amount,o.currency))+' · '+date(o.created_at)+'</p>'+(o.admin_note?'<p class="data-description">'+esc(o.admin_note)+'</p>':'')+(o.status==='awaiting_payment'?'<div class="button-row"><button class="secondary-button" data-show-payment="'+esc(o.id)+'">Реквизиты</button><button class="primary-button" data-mark-paid="'+esc(o.id)+'">Я оплатил</button></div>':'')+'</article>'}).join('')+'</div>':'<div class="empty-card"><span class="empty-icon">▣</span><div><strong>Заказов пока нет</strong><p>Оформленные услуги появятся здесь.</p></div></div>');oh.querySelectorAll('[data-mark-paid]').forEach(b=>b.addEventListener('click',()=>markPaid(b.dataset.markPaid)));oh.querySelectorAll('[data-show-payment]').forEach(b=>b.addEventListener('click',()=>showPayment(b.dataset.showPayment)))}
     const homeFlight=document.getElementById('homeFlightPreview');
@@ -307,7 +320,7 @@
       const services=a.services||[];
       servicesBox.innerHTML='<div class="section-heading section-heading-spaced"><div><p class="eyebrow">SERVICE CATALOG</p><h2>Услуги и Game Pass</h2></div><button class="secondary-button" id="adminAddService">Добавить услугу</button></div>'+
         (services.length?'<div class="data-list">'+services.map(s=>{
-          const pass=s.roblox_gamepass_id?'<p class="data-description">Game Pass ID: '+esc(s.roblox_gamepass_id)+' · '+(s.roblox_enabled?'Активен для новых продлений':'Не используется')+' · '+(s.robux_price?Number(s.robux_price).toLocaleString('ru-RU')+' Robux':'цена не задана')+'</p><p><a class="proof-link" href="https://www.roblox.com/game-pass/'+esc(s.roblox_gamepass_id)+'" target="_blank" rel="noopener">Открыть Game Pass ↗</a></p>':'<p class="data-description">Game Pass не настроен</p>';
+          const pass=s.roblox_gamepass_id?'<p class="data-description">Game Pass ID: '+esc(s.roblox_gamepass_id)+' · '+(s.payment_mode==='roblox_only'?'Только Robux':s.payment_mode==='both'?'Обычная оплата и Robux':'Robux отключён')+' · '+(s.robux_price?Number(s.robux_price).toLocaleString('ru-RU')+' Robux':'цена не задана')+'</p><p><a class="proof-link" href="https://www.roblox.com/game-pass/'+esc(s.roblox_gamepass_id)+'" target="_blank" rel="noopener">Открыть Game Pass ↗</a></p>':'<p class="data-description">Game Pass не настроен</p>';
           return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(s.name)+' · '+esc(s.code)+'</strong><span class="order-status '+(s.active?'status-paid':'status-cancelled')+'">'+(s.active?'Активна':'Скрыта')+'</span></div><p class="muted">'+money(s.price,s.currency)+' · '+Number(s.duration_days)+' дней</p>'+pass+'<div class="button-row"><button class="secondary-button" data-edit-service="'+esc(s.id)+'">Изменить услугу / Game Pass</button></div></article>';
         }).join('')+'</div>':'<div class="empty-card"><strong>Услуг пока нет</strong><p>Добавьте первую услугу в каталог '+esc(airline().title)+'.</p></div>');
       servicesBox.querySelector('#adminAddService')?.addEventListener('click',()=>editService(null));
@@ -386,24 +399,25 @@
         {name:'durationDays',label:'Срок новой активации, дней',type:'number',value:String(current.duration_days??30),required:true},
         {name:'description',label:'Описание',type:'textarea',rows:3,value:current.description||'',placeholder:'Описание привилегии'},
         {name:'active',label:'Услуга отображается в каталоге',type:'select',value:String(current.active!==false),options:[{value:'true',label:'Да'},{value:'false',label:'Нет'}]},
-        {name:'robloxEnabled',label:'Разрешить продление через Roblox Game Pass',type:'select',value:String(current.roblox_enabled===true),options:[{value:'false',label:'Нет'},{value:'true',label:'Да'}]},
-        {name:'robloxGamepassId',label:'Текущий Game Pass ID',value:current.roblox_gamepass_id||'',placeholder:'Например, 1234567890'},
-        {name:'robuxPrice',label:'Базовая цена Game Pass, Robux',type:'number',value:current.robux_price?String(current.robux_price):'',placeholder:'Например, 250'}
+        {name:'paymentMode',label:'Разрешённые способы оплаты',type:'select',value:current.payment_mode||'manual_only',options:[{value:'manual_only',label:'Только обычная оплата (перевод и т. п.)'},{value:'roblox_only',label:'Только Robux через Roblox Game Pass'},{value:'both',label:'Оба способа: обычная оплата и Robux'}]},
+        {name:'robloxGamepassId',label:'Текущий Game Pass ID (для Robux)',value:current.roblox_gamepass_id||'',placeholder:'Например, 1234567890'},
+        {name:'robuxPrice',label:'Цена Game Pass в Robux',type:'number',value:current.robux_price?String(current.robux_price):'',placeholder:'Например, 250'}
       ],
       submitLabel:editing?'Сохранить изменения':'Добавить услугу',
       onSubmit:async v=>{
-        const enabled=v.robloxEnabled==='true';
+        const paymentMode=v.paymentMode||'manual_only';
+        const enabled=paymentMode!=='manual_only';
         const passId=v.robloxGamepassId.trim();
         const robuxPrice=v.robuxPrice===''?null:Number(v.robuxPrice);
         if(!v.code||!v.name||v.price===''||!Number.isInteger(Number(v.durationDays))||Number(v.durationDays)<1){notify('Проверьте код, название, цену и срок услуги');return false}
         if(passId&&!/^[1-9][0-9]{0,19}$/.test(passId)){notify('Game Pass ID должен содержать только цифры');return false}
         if(robuxPrice!==null&&(!Number.isSafeInteger(robuxPrice)||robuxPrice<=0)){notify('Цена в Robux должна быть положительным целым числом');return false}
-        if(enabled&&(!passId||robuxPrice===null)){notify('Для включения Roblox-продления укажите Game Pass ID и цену в Robux');return false}
+        if(enabled&&(!passId||robuxPrice===null)){notify('Для оплаты через Robux укажите Game Pass ID и цену в Robux');return false}
         await call('admin_save_service',{service:{
           ...(editing?{id:current.id}:{}),
           code:v.code,name:v.name,price:Number(v.price),durationDays:Number(v.durationDays),
           description:v.description,currency:airline().currency,active:v.active==='true',
-          robloxEnabled:enabled,robloxGamepassId:passId,robuxPrice
+          paymentMode,robloxEnabled:enabled,robloxGamepassId:passId,robuxPrice
         }});
         notify(editing?'Услуга обновлена. Активные сроки пассажиров сохранены.':'Услуга добавлена');
         await loadDashboard();
