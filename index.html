@@ -9,10 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./assets/styles.css?v=20261118-portal-gateway">
+<link rel="stylesheet" href="./assets/styles.css?v=20261118-portal-selection">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-<body>
+<body class="portal-selection-active">
 <div class="app-shell">
 <div class="portal-gateway" id="portalGateway" role="dialog" aria-modal="true" aria-labelledby="portalGatewayTitle">
   <div class="portal-gateway-inner">
@@ -37,7 +37,7 @@
 </div>
 
   <header class="topbar">
-    <a class="brand" href="#" data-page="home" aria-label="На главную">
+    <a class="brand" href="#" data-page="portal-select" aria-label="Выбрать портал Royal Alliance">
       <img class="brand-logo" src="./assets/royal-flight-logo.svg" alt="Royal Flight">
       <span class="brand-copy"><strong>ROYAL FLIGHT</strong><small>PASSENGER CLUB</small></span>
     </a>
@@ -58,7 +58,50 @@
   </div>
 
   <main id="appMain">
-    <section class="page active" id="page-home">
+    <section class="page active portal-selection-page" id="page-portal-select" aria-labelledby="portalSelectionTitle">
+      <div class="portal-selection-header">
+        <div class="portal-alliance-mark" aria-hidden="true"><span>RA</span><i></i></div>
+        <p class="eyebrow">VIRTUAL AIRLINE ALLIANCE</p>
+        <h1 id="portalSelectionTitle">Добро пожаловать в личный кабинет виртуального альянса <span>«Royal Alliance»</span>.</h1>
+        <p class="portal-selection-subtitle">Выберите, в какой портал вы хотите попасть.</p>
+      </div>
+
+      <div class="portal-grid" role="list" aria-label="Порталы авиакомпаний альянса">
+        <button class="portal-card portal-card-royal" type="button" data-portal="royal" role="listitem">
+          <span class="portal-card-top"><span class="portal-card-index">PORTAL 01</span><span class="portal-card-arrow">↗</span></span>
+          <span class="portal-card-brand">
+            <img src="./assets/royal-flight-logo.svg" alt="Royal Flight">
+          </span>
+          <span class="portal-card-copy">
+            <strong>Royal Flight</strong>
+            <small>ROYAL FLIGHT · PASSENGER CLUB</small>
+            <span>Рейсы, услуги и привилегии Royal Flight.</span>
+          </span>
+          <span class="portal-card-enter">Войти в портал <b>→</b></span>
+        </button>
+
+        <button class="portal-card portal-card-azal" type="button" data-portal="azal" role="listitem">
+          <span class="portal-card-top"><span class="portal-card-index">PORTAL 02</span><span class="portal-card-arrow">↗</span></span>
+          <span class="portal-card-brand portal-card-brand-azal">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/4d/Azerbaijan_Airlines_logo.svg" alt="AZAL">
+          </span>
+          <span class="portal-card-copy">
+            <strong>AZAL</strong>
+            <small>AZERBAIJAN AIRLINES</small>
+            <span>Отдельный портал услуг и рейсов AZAL.</span>
+          </span>
+          <span class="portal-card-enter">Войти в портал <b>→</b></span>
+        </button>
+      </div>
+
+      <div class="portal-alliance-note">
+        <span class="portal-alliance-note-icon">✦</span>
+        <p><strong>Один альянс. Единая программа лояльности.</strong><br>Порталы авиакомпаний работают отдельно, а профиль и баланс Royal Alliance Miles общие.</p>
+      </div>
+      <p class="portal-selection-footer">ROYAL ALLIANCE · VIRTUAL AIRLINE ALLIANCE</p>
+    </section>
+
+    <section class="page" id="page-home">
       <div class="welcome-row">
         <div class="welcome-copy">
           <p class="eyebrow" id="welcomeEyebrow">ВАШЕ ПУТЕШЕСТВИЕ НАЧИНАЕТСЯ ЗДЕСЬ</p>
@@ -227,6 +270,6 @@
   <div id="appModal" class="app-modal-root" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
-<script src="./assets/app.js?v=20261118-portal-gateway"></script>
+<script src="./assets/app.js?v=20261118-portal-selection"></script>
 </body>
 </html>
