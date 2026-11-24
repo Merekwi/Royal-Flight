@@ -13,13 +13,15 @@
   document.getElementById('profileShortcut')?.addEventListener('click',()=>openPage('profile'));
   const airlines={
     royal:{code:'royal',name:'ROYAL FLIGHT',sub:'PASSENGER CLUB',miles:'ROYAL ALLIANCE MILES',initials:'RF',logo:'./assets/royal-flight-logo.svg',title:'Royal Flight',theme:'royal',currency:'RUB',welcomeEyebrow:'ВАШЕ ПУТЕШЕСТВИЕ НАЧИНАЕТСЯ ЗДЕСЬ',welcomeCopy:'Участник программы Royal Flight Passenger Club',milesDescription:'Единый баланс Royal Alliance Miles. Мили доступны во всех порталах авиакомпаний-участниц.',serviceDescription:'Услуги и привилегии Royal Flight для участников программы.',serviceIntro:'Путешествуйте с комфортом',roblox:true,watermark:'RF',flightTag:'RF FLIGHT'},
-    azal:{code:'azal',name:'AZAL',sub:'AZERBAIJAN AIRLINES',miles:'ROYAL ALLIANCE MILES',initials:'AZ',logo:'https://upload.wikimedia.org/wikipedia/commons/4/4d/Azerbaijan_Airlines_logo.svg',title:'AZAL',theme:'azal',currency:'AZN',welcomeEyebrow:'AZERBAIJAN AIRLINES · PASSENGER PORTAL',welcomeCopy:'Личный кабинет пассажира Azerbaijan Airlines',milesDescription:'Единый баланс Royal Alliance Miles. Мили доступны во всех порталах авиакомпаний-участниц.',serviceDescription:'Услуги и предложения Azerbaijan Airlines. Каталог AZAL не связан с Royal Flight.',serviceIntro:'Откройте возможности AZAL',roblox:false,watermark:'AZAL',flightTag:'AZAL FLIGHT'}
+    azal:{code:'azal',name:'AZAL',sub:'AZERBAIJAN AIRLINES',miles:'ROYAL ALLIANCE MILES',initials:'AZ',logo:'https://upload.wikimedia.org/wikipedia/commons/4/4d/Azerbaijan_Airlines_logo.svg',title:'AZAL',theme:'azal',currency:'AZN',welcomeEyebrow:'AZERBAIJAN AIRLINES · PASSENGER PORTAL',welcomeCopy:'Личный кабинет пассажира Azerbaijan Airlines',milesDescription:'Единый баланс Royal Alliance Miles. Мили доступны во всех порталах авиакомпаний-участниц.',serviceDescription:'Услуги и предложения Azerbaijan Airlines. Каталог AZAL не связан с Royal Flight.',serviceIntro:'Откройте возможности AZAL',roblox:false,watermark:'AZAL',flightTag:'AZAL FLIGHT'},
+    izavia:{code:'izavia',name:'ИЖАВИА',sub:'AIRLINE PORTAL',miles:'ROYAL ALLIANCE MILES',initials:'I8',logo:'./assets/izavia-logo.svg',title:'Ижавиа',theme:'izavia',currency:'RUB',welcomeEyebrow:'ИЖАВИА · PASSENGER PORTAL',welcomeCopy:'Личный кабинет пассажира Ижавиа',milesDescription:'Единый баланс Royal Alliance Miles. Мили доступны во всех порталах авиакомпаний-участниц.',serviceDescription:'Услуги и привилегии Ижавиа для участников Royal Alliance.',serviceIntro:'Откройте возможности Ижавиа',roblox:true,watermark:'I8',flightTag:'I8 FLIGHT'}
   };
   const airline=()=>airlines[currentAirline]||airlines.royal;
   function applyAirline(key){
     const a=airlines[key]||airlines.royal;
     currentAirline=a.code;
     document.body.classList.toggle('azal-theme',key==='azal');
+    document.body.classList.toggle('izavia-theme',key==='izavia');
     const logo=document.querySelector('.brand-logo');if(logo){logo.src=a.logo;logo.alt=a.title}
     const brand=document.querySelector('.brand-copy');if(brand){brand.querySelector('strong').textContent=a.name;brand.querySelector('small').textContent=a.sub}
     const pill=document.querySelector('.miles-card .pill');if(pill) pill.innerHTML='<span class="status-dot"></span> '+a.miles;
@@ -35,7 +37,8 @@
     const connectedHeading=document.getElementById('connectedAccountsHeading');if(connectedHeading)connectedHeading.hidden=!a.roblox;
     const how=document.getElementById('milesHow');if(how)how.hidden=!a.roblox;
     const robloxGroup=document.getElementById('robloxConnectionGroup');if(robloxGroup)robloxGroup.hidden=!a.roblox;
-    document.querySelectorAll('[data-royal-only]').forEach(el=>el.hidden=!a.roblox);
+    document.querySelectorAll('[data-royal-only]').forEach(el=>el.hidden=key!=='royal');
+    document.querySelectorAll('[data-izavia-only]').forEach(el=>el.hidden=key!=='izavia');
     const adminPortal=document.getElementById('adminPortalName');if(adminPortal)adminPortal.textContent=a.title;
     const currencyNote=document.getElementById('adminCurrencyNote');if(currencyNote)currencyNote.textContent='Валюта каталога: '+a.currency;
     const select=document.getElementById('airlineSwitcher');if(select)select.value=key;
@@ -161,7 +164,7 @@
       if(!d.profile)throw new Error(d.error||'Сервер не вернул профиль пользователя.');
       const p=d.profile,name=p.display_name||('Пассажир '+airlines[portal].title);
       document.getElementById('profileName').textContent=name;
-      document.getElementById('welcomeName').textContent=name+', добро пожаловать в '+(airlineSelect?.value==='azal'?'AZAL':'Royal Flight');
+      document.getElementById('welcomeName').textContent=name+', добро пожаловать в '+airline().title;
       document.getElementById('telegramIdentity').textContent=p.telegram_username?'@'+p.telegram_username:'Telegram ID: '+p.telegram_id;
       const initials=name.split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'RF';
       const avatarInitials=document.getElementById('avatarInitials');if(avatarInitials)avatarInitials.textContent=initials;
@@ -244,17 +247,19 @@
         const robuxAllowed=(mode==='roblox_only'||mode==='both')&&s.roblox_enabled&&s.roblox_gamepass_id&&s.robux_price;
         const manualAllowed=mode==='manual_only'||mode==='both';
         const paymentLabel=mode==='roblox_only'?'ТОЛЬКО ROBUX':mode==='both'?'ОБА СПОСОБА':'ОБЫЧНАЯ ОПЛАТА';
-        const robloxInfo=robuxAllowed?'<p class="service-roblox-pass">Оплата через Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux. Нажмите кнопку, чтобы открыть лобби Royal Alliance и завершить покупку там.</p>':'';
+        const robloxInfo=robuxAllowed?'<p class="service-roblox-pass">Оплата через Roblox · '+Number(s.robux_price).toLocaleString('ru-RU')+' Robux. '+(airline().code==='izavia'?'Покупка проходит в отдельном Roblox-сервисе Ижавиа. Доход от Game Pass поступает владельцу их Experience.':'Откройте Roblox, чтобы завершить покупку в поддерживаемом Experience.')+'</p>':'';
         const manualPrice=manualAllowed?money(s.price,s.currency):'';
         const milesCost=s.currency==='RUB'&&Number(s.price)>0?Math.ceil(Number(s.price)*10):null;
         const milesInfo=milesCost!==null?'<p class="data-description">Можно оплатить милями: '+milesCost.toLocaleString('ru-RU')+' миль · 10 миль = 1 ₽</p>':'';
         const showCheckout=manualAllowed||milesCost!==null;
-        const buttons=(showCheckout?'<button class="primary-button" data-buy="'+esc(s.id)+'">'+(manualAllowed?'Выбрать способ оплаты':'Оплатить милями')+'</button>':'')+(mode==='roblox_only'&&robuxAllowed?'<button type="button" class="primary-button service-roblox-button" data-buy-roblox="1">Открыть лобби Royal Alliance для оплаты ↗</button>':'');
-        const bothLink=mode==='both'&&robuxAllowed?'<button type="button" class="secondary-button service-roblox-button" data-buy-roblox="1">Открыть лобби Royal Alliance для оплаты ↗</button>':'';
+        const robloxBuyButton=robuxAllowed?(airline().code==='izavia'?'<button type="button" class="primary-button service-roblox-button" data-buy-izavia-pass="'+esc(s.id)+'">Перейти в сервис Ижавиа для оплаты ↗</button>':'<button type="button" class="primary-button service-roblox-button" data-buy-roblox="1">Открыть Roblox для оплаты ↗</button>'):'';
+        const buttons=(showCheckout?'<button class="primary-button" data-buy="'+esc(s.id)+'">'+(manualAllowed?'Выбрать способ оплаты':'Оплатить милями')+'</button>':'')+(mode==='roblox_only'?robloxBuyButton:'');
+        const bothLink=mode==='both'?robloxBuyButton.replace('primary-button','secondary-button'):'';
         return '<article class="data-card service-card"><div class="data-card-top"><span class="flight-tag">'+esc(s.code)+'</span><span class="service-duration">'+Number(s.duration_days)+' дней</span></div><div class="service-payment-mode">'+paymentLabel+'</div><h3>'+esc(s.name)+'</h3><p class="data-description">'+esc(s.description||airline().serviceDescription)+'</p>'+robloxInfo+milesInfo+'<div class="service-buy-row">'+(manualAllowed?'<strong>'+manualPrice+'</strong>':(milesCost===null?'<strong>'+Number(s.robux_price||0).toLocaleString('ru-RU')+' Robux</strong>':''))+buttons+bothLink+'</div></article>';
       }).join('')+'</div>':'<div class="empty-state"><div class="empty-orbit">♛</div><h3>Каталог '+esc(airline().title)+' пока пуст</h3><p>Администрация добавит сюда услуги этой авиакомпании.</p></div>';
       sc.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>createOrder(b.dataset.buy)));
       sc.querySelectorAll('[data-buy-roblox]').forEach(b=>b.addEventListener('click',openRobloxPortal));
+      sc.querySelectorAll('[data-buy-izavia-pass]').forEach(b=>b.addEventListener('click',()=>startIzhaviaPurchase(b.dataset.buyIzaviaPass)));
     }
     const oh=document.getElementById('ordersHistory');
     if(oh){const orders=d.orders||[];oh.innerHTML='<h2 class="subheading orders-heading">Мои заказы</h2>'+(orders.length?'<div class="data-list">'+orders.map(o=>{const labels={awaiting_payment:'Ожидает оплаты',awaiting_review:'На проверке',paid:'Оплачен',rejected:'Отклонён',cancelled:'Отменён'};return '<article class="data-card order-card"><div class="data-card-top"><strong>'+esc(o.order_number)+'</strong><span class="order-status status-'+esc(o.status)+'">'+esc(labels[o.status]||o.status)+'</span></div><p class="muted">'+(o.payment_provider==='roblox_gamepass'?Number(o.amount).toLocaleString('ru-RU')+' Robux · оплачено в Roblox':o.payment_provider==='miles'?Math.ceil(Number(o.amount)*10).toLocaleString('ru-RU')+' миль · оплачено милями':money(o.amount,o.currency))+' · '+date(o.created_at)+'</p>'+(o.admin_note?'<p class="data-description">'+esc(o.admin_note)+'</p>':'')+(o.status==='awaiting_payment'?'<div class="button-row"><button class="secondary-button" data-show-payment="'+esc(o.id)+'">Реквизиты</button><button class="primary-button" data-mark-paid="'+esc(o.id)+'">Я оплатил</button></div>':'')+'</article>'}).join('')+'</div>':'<div class="empty-card"><span class="empty-icon">▣</span><div><strong>Заказов пока нет</strong><p>Оформленные услуги появятся здесь.</p></div></div>');oh.querySelectorAll('[data-mark-paid]').forEach(b=>b.addEventListener('click',()=>markPaid(b.dataset.markPaid)));oh.querySelectorAll('[data-show-payment]').forEach(b=>b.addEventListener('click',()=>showPayment(b.dataset.showPayment)))}
@@ -312,6 +317,25 @@
     window.open(ROYAL_ALLIANCE_LOBBY_URL,'_blank','noopener');
   }
   document.addEventListener('click',event=>{const link=event.target.closest('[data-open-alliance-lobby]');if(!link)return;event.preventDefault();openRobloxPortal()});
+  async function startIzhaviaPurchase(serviceId){
+    const service=(dashboard?.services||[]).find(x=>x.id===serviceId);
+    if(!service){notify('Услуга Ижавиа больше недоступна. Обновите каталог.');return}
+    try{
+      const result=await call('create_izavia_purchase_code',{serviceId});
+      const launchUrl='https://www.roblox.com/games/start?placeId='+encodeURIComponent(result.placeId);
+      showModal({
+        title:'Оплата услуги Ижавиа',
+        subtitle:'Покупка проходит в отдельном Roblox-сервисе авиакомпании.',
+        content:'<div class="roblox-code-card"><span>ОДНОРАЗОВЫЙ КОД ПОКУПКИ</span><strong>'+esc(result.purchaseCode)+'</strong><small>Действует 15 минут · услуга: '+esc(service.name)+'</small><button class="copy-value" type="button" data-copy="'+esc(result.purchaseCode)+'">Копировать код</button></div><p class="modal-hint">Откройте сервис Ижавиа, нажмите «Оплатить услугу», введите этот код и подтвердите покупку Game Pass. Деньги поступят владельцу Roblox Experience Ижавиа.</p>',
+        actions:[{label:'Позже',onClick:closeModal},{label:'Открыть сервис Ижавиа ↗',primary:true,onClick:()=>{closeModal();if(tg?.openLink)tg.openLink(launchUrl);else window.open(launchUrl,'_blank','noopener')}}]
+      });
+      wireCopyButtons();
+    }catch(e){
+      const code=e?.payload?.error||'';
+      const message=code==='roblox_account_not_linked'?'Сначала привяжите Roblox в профиле через лобби Royal Alliance.':code==='izavia_roblox_place_not_configured'?'Администратор Ижавиа ещё не указал Place ID их Roblox-сервиса.':e.message||'Не удалось создать код покупки.';
+      notify(message);
+    }
+  }
   async function createOrder(serviceId){
     const service=(dashboard?.services||[]).find(s=>s.id===serviceId);
     const allMethods=dashboard?.paymentMethods||[];
@@ -504,7 +528,7 @@
         {name:'origin',label:'Город вылета',required:true,placeholder:'Москва'},
         {name:'destination',label:'Город прилёта',required:true,placeholder:'Анталья'},
         {name:'departureAt',label:'Дата и время вылета',type:'datetime-local',required:true},
-        {name:'flightNumber',label:'Номер рейса',value:currentAirline==='azal'?'J2 001':'RF001'},
+        {name:'flightNumber',label:'Номер рейса',value:currentAirline==='azal'?'J2 001':currentAirline==='izavia'?'I8 001':'RF001'},
         {name:'aircraft',label:'Самолёт',value:'Boeing 737-800'},
         {name:'capacity',label:'Количество мест',type:'number',placeholder:'Например, 189'}
       ],submitLabel:'Создать рейс',onSubmit:async v=>{
@@ -527,8 +551,9 @@
       }});return;
     }
     if(section==='settings'){
-      showModal({title:'Настройки клуба',subtitle:'Выберите параметр, который нужно изменить.',content:'<div class="settings-action-list"><button class="settings-action" data-setting="rate" data-royal-only><span class="settings-action-icon">✦</span><span><strong>Начисление миль</strong><small>Мили за минуту на сервере</small></span><b>›</b></button><button class="settings-action" data-setting="payment"><span class="settings-action-icon">▤</span><span><strong>Способ оплаты</strong><small>Добавить платёжные реквизиты</small></span><b>›</b></button><button class="settings-action" data-setting="places" data-royal-only><span class="settings-action-icon">⌖</span><span><strong>Серверы Roblox</strong><small>Разрешённые Place ID</small></span><b>›</b></button></div>',actions:[{label:'Закрыть',onClick:closeModal}]});
+      showModal({title:'Настройки клуба',subtitle:'Выберите параметр, который нужно изменить.',content:'<div class="settings-action-list"><button class="settings-action" data-setting="rate" data-royal-only><span class="settings-action-icon">✦</span><span><strong>Начисление миль</strong><small>Мили за минуту на сервере</small></span><b>›</b></button><button class="settings-action" data-setting="payment"><span class="settings-action-icon">▤</span><span><strong>Способ оплаты</strong><small>Добавить платёжные реквизиты</small></span><b>›</b></button><button class="settings-action" data-setting="places" data-royal-only><span class="settings-action-icon">⌖</span><span><strong>Серверы Roblox</strong><small>Разрешённые Place ID</small></span><b>›</b></button><button class="settings-action" data-setting="izavia-place" data-izavia-only><span class="settings-action-icon">↗</span><span><strong>Roblox-сервис Ижавиа</strong><small>Place ID для отдельных покупок Game Pass</small></span><b>›</b></button></div>',actions:[{label:'Закрыть',onClick:closeModal}]});
       modalRoot.querySelectorAll('[data-royal-only]').forEach(el=>el.hidden=currentAirline!=='royal');
+      modalRoot.querySelectorAll('[data-izavia-only]').forEach(el=>el.hidden=currentAirline!=='izavia');
       modalRoot.querySelector('[data-setting="rate"]')?.addEventListener('click',()=>{
         closeModal();showAdminForm({title:'Начисление миль',subtitle:'Установите количество миль за минуту на сервере.',fields:[{name:'rate',label:'Миль за полную минуту',type:'number',value:'1',required:true}],submitLabel:'Сохранить',onSubmit:async v=>{const rate=Number(v.rate);if(!Number.isInteger(rate)||rate<0||rate>10000){notify('Укажите целое число от 0 до 10000');return false}await call('admin_set_miles_rate',{milesPerMinute:rate});notify('Ставка обновлена');return true}});
       });
@@ -542,6 +567,9 @@
       });
       modalRoot.querySelector('[data-setting="places"]')?.addEventListener('click',()=>{
         closeModal();showAdminForm({title:'Серверы Roblox',subtitle:'Укажите Place ID через запятую.',fields:[{name:'ids',label:'Разрешённые Place ID',type:'textarea',rows:3,required:true,placeholder:'123456789, 987654321'}],submitLabel:'Сохранить',onSubmit:async v=>{const ids=v.ids.split(',').map(x=>x.trim()).filter(Boolean);if(!ids.length){notify('Укажите хотя бы один ID');return false}await call('admin_set_roblox_places',{placeIds:ids});notify('Список серверов обновлён');return true}});
+      });
+      modalRoot.querySelector('[data-setting="izavia-place"]')?.addEventListener('click',()=>{
+        closeModal();showAdminForm({title:'Roblox-сервис Ижавиа',subtitle:'Укажите Place ID Experience, где размещены Game Pass услуги Ижавиа. Все покупки этого портала будут открываться именно там.',fields:[{name:'placeId',label:'Place ID Roblox-сервиса',required:true,placeholder:'Например, 12345678901234'}],submitLabel:'Сохранить сервис',onSubmit:async v=>{if(!/^[1-9][0-9]{0,19}$/.test(v.placeId)){notify('Place ID должен содержать только цифры');return false}await call('admin_set_izavia_roblox_place',{placeId:v.placeId});notify('Roblox-сервис Ижавиа подключён');return true}});
       });return;
     }
   }
