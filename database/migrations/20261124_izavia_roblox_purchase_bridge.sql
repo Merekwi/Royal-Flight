@@ -352,8 +352,8 @@ BEGIN
   END IF;
 
   v_place_setting_key := CASE
-    WHEN v_service.airline_code = 'royal' THEN 'roblox_place_ids'
-    ELSE 'roblox_place_ids_' || v_service.airline_code
+    WHEN v_service.airline_code = 'izavia' THEN 'roblox_place_ids_izavia'
+    ELSE 'roblox_place_ids'
   END;
 
   IF NOT EXISTS (
