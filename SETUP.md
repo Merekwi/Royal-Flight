@@ -39,7 +39,7 @@ The workflow `.github/workflows/dispatch-notifications.yml` checks for due notif
 
 ## 5. Connect the Royal Alliance Roblox lobby
 
-Follow [roblox/README.md](roblox/README.md). Use the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) (Place ID: `101826857818257`) and add its Place ID to the approved list in the Mini App under **Настройки → Серверы Roblox**. Enable HTTP requests in Roblox Studio and insert the two scripts from the `roblox` folder into the specified services.
+Follow [roblox/README.md](roblox/README.md). Use the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) (Place ID: `101826857818257`) and add its Place ID to the approved list in the Mini App under **Настройки → Серверы Roblox**. Enable HTTP requests in Roblox Studio. Install `RoyalAllianceLobbyServer.server.lua` in **ServerScriptService** and `RoyalAllianceLobbyClient.client.lua` in **StarterPlayer → StarterPlayerScripts**. Remove the older `RoyalFlightLinkServer.server.lua` and `RoyalFlightLinkClient.client.lua` copies to avoid duplicate heartbeats and panels.
 
 ## 6. Connect Ижавиа's separate Roblox purchase Experience
 
