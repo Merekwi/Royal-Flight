@@ -5,22 +5,24 @@ const json = (body: unknown, status = 200) =>
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-  const expectedSecret = Deno.env.get("ROBLOX_SERVER_SECRET");
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!expectedSecret || !url || !serviceKey) return json({ error: "server_not_configured" }, 503);
-  const suppliedSecret = req.headers.get("x-rf-server-secret") || "";
-  if (suppliedSecret.length !== expectedSecret.length) return json({ error: "unauthorized" }, 401);
-  let mismatch = 0;
-  for (let i = 0; i < expectedSecret.length; i++) mismatch |= expectedSecret.charCodeAt(i) ^ suppliedSecret.charCodeAt(i);
-  if (mismatch !== 0) return json({ error: "unauthorized" }, 401);
+  if (!url || !serviceKey) return json({ error: "server_not_configured" }, 503);
 
   try {
     const body = await req.json();
+    const action = body?.action;
+    const isIzaviaPurchaseAction = action === "izavia_purchase_start" || action === "izavia_purchase_confirm";
+    const expectedSecret = Deno.env.get(isIzaviaPurchaseAction ? "IZHAVIA_ROBLOX_SERVER_SECRET" : "ROBLOX_SERVER_SECRET");
+    if (!expectedSecret) return json({ error: isIzaviaPurchaseAction ? "izavia_server_not_configured" : "server_not_configured" }, 503);
+    const suppliedSecret = req.headers.get("x-rf-server-secret") || "";
+    if (suppliedSecret.length !== expectedSecret.length) return json({ error: "unauthorized" }, 401);
+    let mismatch = 0;
+    for (let i = 0; i < expectedSecret.length; i++) mismatch |= expectedSecret.charCodeAt(i) ^ suppliedSecret.charCodeAt(i);
+    if (mismatch !== 0) return json({ error: "unauthorized" }, 401);
     const userId = Number(body?.robloxUserId);
     const placeId = Number(body?.placeId);
     const jobId = typeof body?.jobId === "string" ? body.jobId.slice(0, 100) : "";
-    const action = body?.action;
     if (!Number.isSafeInteger(placeId) || placeId <= 0 || !jobId ||
         (action !== "heartbeat_batch" && (!Number.isSafeInteger(userId) || userId <= 0))) {
       return json({ error: "invalid_request" }, 400);
@@ -41,8 +43,13 @@ Deno.serve(async (req) => {
       }
     }
     // Mileage heartbeats are accepted from any non-excluded Roblox place running
-    // the trusted server script. Other portal actions remain restricted to configured place IDs.
-    if (!["heartbeat_batch", "heartbeat", "leave"].includes(action)) {
+    // the trusted server script. The Izhavia purchase bridge has its own, separate Place allow-list.
+    if (isIzaviaPurchaseAction) {
+      const setting = await db.from("rf_settings").select("value").eq("key", "roblox_place_ids_izavia").maybeSingle();
+      if (setting.error) return json({error:"izavia_place_settings_unavailable"},503);
+      const allowed = Array.isArray(setting.data?.value) ? setting.data.value.map((x:unknown)=>String(x)) : [];
+      if (!allowed.includes(String(placeId))) return json({error:"izavia_place_not_allowed"},403);
+    } else if (!["heartbeat_batch", "heartbeat", "leave"].includes(action)) {
       const setting = await db.from("rf_settings").select("value").eq("key", "roblox_place_ids").maybeSingle();
       const allowed = Array.isArray(setting.data?.value) ? setting.data.value.map((x: unknown) => String(x)) : [];
       if (!allowed.includes(String(placeId))) return json({ error: "place_not_allowed" }, 403);
@@ -66,7 +73,7 @@ Deno.serve(async (req) => {
 
     if (action === "catalog") {
       const airlineCode = typeof body?.airlineCode === "string" ? body.airlineCode : "";
-      if (!["royal","azal"].includes(airlineCode)) return json({ error: "invalid_airline_code" }, 400);
+      if (!["royal","azal","izavia"].includes(airlineCode)) return json({ error: "invalid_airline_code" }, 400);
       const [profile, services] = await Promise.all([
         db.from("rf_profiles").select("display_name,roblox_username").eq("roblox_user_id", userId).maybeSingle(),
         db.from("rf_services")
@@ -87,6 +94,62 @@ Deno.serve(async (req) => {
           gamePassUrl: "https://www.roblox.com/game-pass/" + s.roblox_gamepass_id
         }))
       });
+    }
+
+    if (action === "izavia_purchase_start") {
+      const purchaseCode = typeof body?.purchaseCode === "string" ? body.purchaseCode.trim().toUpperCase() : "";
+      if (!/^[A-HJ-NP-Z2-9]{8}$/.test(purchaseCode)) return json({error:"invalid_izavia_purchase_code"},400);
+      const [profileResult, codeResult] = await Promise.all([
+        db.from("rf_profiles").select("id,roblox_user_id").eq("roblox_user_id",userId).maybeSingle(),
+        db.from("rf_izavia_purchase_codes").select("code,profile_id,service_id,gamepass_id,expires_at,started_at,started_by_roblox_user_id,used_at")
+          .eq("code",purchaseCode).eq("airline_code","izavia").maybeSingle()
+      ]);
+      if (profileResult.error || codeResult.error) return json({error:"izavia_purchase_lookup_failed"},503);
+      const linkedProfile = profileResult.data;
+      const purchase = codeResult.data;
+      if (!linkedProfile || !purchase || purchase.profile_id !== linkedProfile.id) return json({error:"izavia_purchase_code_not_found"},404);
+      if (purchase.used_at) return json({error:"izavia_purchase_code_used"},409);
+      if (Date.parse(purchase.expires_at) <= Date.now()) return json({error:"izavia_purchase_code_expired"},409);
+      if (purchase.started_by_roblox_user_id && Number(purchase.started_by_roblox_user_id)!==userId)
+        return json({error:"izavia_purchase_code_other_player"},403);
+      const serviceResult = await db.from("rf_services")
+        .select("id,name,airline_code,active,payment_mode,roblox_enabled,roblox_gamepass_id,robux_price")
+        .eq("id",purchase.service_id).eq("airline_code","izavia").eq("active",true).maybeSingle();
+      if (serviceResult.error) return json({error:"izavia_service_lookup_failed"},503);
+      const service = serviceResult.data;
+      if (!service || !["roblox_only","both"].includes(service.payment_mode) || service.roblox_enabled!==true ||
+          service.roblox_gamepass_id!==purchase.gamepass_id || Number(service.robux_price)<=0)
+        return json({error:"izavia_service_or_gamepass_changed"},409);
+      if (!purchase.started_at) {
+        const updated = await db.from("rf_izavia_purchase_codes").update({
+          started_at:new Date().toISOString(), started_by_roblox_user_id:userId
+        }).eq("code",purchaseCode).is("started_by_roblox_user_id",null).is("used_at",null)
+          .select("code").maybeSingle();
+        if (updated.error || !updated.data) return json({error:"izavia_purchase_code_race"},409);
+      }
+      return json({
+        ok:true, purchaseCode, airlineCode:"izavia", serviceId:service.id, serviceName:service.name,
+        gamePassId:service.roblox_gamepass_id, robuxPrice:service.robux_price
+      });
+    }
+
+    if (action === "izavia_purchase_confirm") {
+      const purchaseCode = typeof body?.purchaseCode === "string" ? body.purchaseCode.trim().toUpperCase() : "";
+      const gamePassId = typeof body?.gamePassId === "string" ? body.gamePassId.trim() : "";
+      if (!/^[A-HJ-NP-Z2-9]{8}$/.test(purchaseCode) || !/^[1-9][0-9]{0,19}$/.test(gamePassId) || body?.ownershipVerified!==true)
+        return json({error:"invalid_izavia_purchase_confirmation"},400);
+      const activated = await db.rpc("rf_activate_izavia_purchase_code",{
+        p_code:purchaseCode, p_roblox_user_id:userId, p_gamepass_id:gamePassId,
+        p_place_id:placeId, p_job_id:jobId, p_ownership_verified:true
+      });
+      if (activated.error) {
+        const message = activated.error.message || "";
+        const known = ["purchase_code_not_found","purchase_code_already_used","purchase_code_expired","purchase_code_not_started_by_player","purchase_gamepass_mismatch","roblox_account_not_linked","service_or_gamepass_changed","izavia_place_not_allowed"];
+        const reason = known.find(x=>message.includes(x));
+        console.error("izavia_purchase_activation_failed",message);
+        return json({error:reason||"izavia_purchase_activation_failed"},409);
+      }
+      return json(activated.data || {ok:true});
     }
 
     if (action === "entitlements") {
