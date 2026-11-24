@@ -13,7 +13,7 @@
 1. In Roblox Studio, enable **Game Settings → Security → Allow HTTP Requests**.
 2. Choose a long random secret (at least 32 random characters). Do not put it in a LocalScript or publish it in chat.
 3. In Supabase project `iotwbzzlwltjfddrmhvg`, add the Edge Function secret `ROBLOX_SERVER_SECRET` with that value. The secret-management UI/CLI is required; it is not stored in this repository.
-4. Paste the same value into the `SERVER_SECRET` constant in `RoyalFlightLinkServer.server.lua`. This is a server Script in ServerScriptService, so it is not replicated to clients.
+4. Paste the same value into the `SERVER_SECRET` constant in `RoyalAllianceLobbyServer.server.lua`. This is a server Script in ServerScriptService, so it is not replicated to clients.
 5. Publish the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) and copy its **Place ID** (`101826857818257`).
 6. Open the Mini App as the owner/admin → **Настройки** → **Серверы Roblox** and add the [Royal Alliance lobby](https://www.roblox.com/games/101826857818257) where users will link their account or use Game Pass features. This allow-list is for linking and other Roblox portal actions, not mileage heartbeats. The API rejects any Place ID not on this list.
 7. Put `RoyalAllianceLobbyServer.server.lua` in **ServerScriptService** and `RoyalAllianceLobbyClient.client.lua` in **StarterPlayer → StarterPlayerScripts**. Remove the older `RoyalFlightLinkServer.server.lua` / `RoyalFlightLinkClient.client.lua` pair before installing these renamed files; do not keep two copies of the same lobby scripts running.
