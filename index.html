@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./assets/styles.css?v=20261118-refined-gateway">
+<link rel="stylesheet" href="./assets/styles.css?v=20261124-izavia-1">
 <link rel="stylesheet" href="./assets/career.css?v=20261118-audit-4">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -31,6 +31,11 @@
         <span class="portal-choice-text"><span class="portal-choice-kicker">AZERBAIJAN AIRLINES</span><strong>AZAL</strong><small>Отдельный портал Azerbaijan Airlines</small></span>
         <span class="portal-choice-arrow">↗</span>
       </button>
+      <button class="portal-choice-card portal-choice-izavia" type="button" data-enter-airline="izavia">
+        <span class="portal-choice-logo portal-choice-logo-izavia"><img src="./assets/izavia-logo.svg" alt="Логотип Ижавиа"></span>
+        <span class="portal-choice-text"><span class="portal-choice-kicker">ВИРТУАЛЬНАЯ АВИАКОМПАНИЯ</span><strong>Ижавиа</strong><small>Отдельный портал Ижавиа в Royal Alliance</small></span>
+        <span class="portal-choice-arrow">↗</span>
+      </button>
     </div>
     <p class="portal-gateway-footnote">Единый профиль и мили Royal Alliance · отдельные порталы авиакомпаний</p>
   </div>
@@ -46,6 +51,7 @@
       <select id="airlineSwitcher" aria-label="Выбрать авиакомпанию">
         <option value="royal">Royal Flight</option>
         <option value="azal">AZAL</option>
+        <option value="izavia">Ижавиа</option>
       </select>
     </label>
     <button class="avatar-button" id="profileShortcut" aria-label="Открыть профиль"><span id="avatarInitials">RF</span></button>
@@ -251,7 +257,7 @@
   <div id="appModal" class="app-modal-root" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 </div>
-<script src="./assets/app.js?v=20261119-alliance-lobby"></script>
+<script src="./assets/app.js?v=20261124-izavia-1"></script>
 <script src="./assets/career.js?v=20261118-audit-4"></script>
 </body>
 </html>
