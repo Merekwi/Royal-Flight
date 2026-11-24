@@ -552,9 +552,9 @@ button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,te
 }
 .portal-choice-card:hover{transform:translateY(-2px);border-color:#aebdc6;box-shadow:0 12px 30px rgba(20,42,59,.08)}
 .portal-choice-card:focus-visible{outline:2px solid #42677e;outline-offset:3px}
-.portal-choice-logo{display:grid;place-items:center;width:108px;height:68px;padding:5px;border:0;background:transparent}
+.portal-choice-logo{display:grid;place-items:center;width:82px;height:68px;padding:5px;border:0;background:transparent}
 .portal-choice-logo img{display:block;width:100%;height:100%;object-fit:contain}
-.portal-choice-logo-azal{width:108px}
+.portal-choice-logo-azal{width:82px;height:68px}
 .portal-choice-logo-izavia{width:82px;height:82px;padding:4px}
 .portal-choice-logo-izavia img{object-fit:contain}
 .portal-choice-text{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0}
