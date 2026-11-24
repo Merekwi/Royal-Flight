@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+<title id="title">Ижавиа</title>
+<defs>
+  <linearGradient id="izhaviaRed" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#bf2d70"/>
+    <stop offset=".48" stop-color="#ed1740"/>
+    <stop offset="1" stop-color="#f00018"/>
+  </linearGradient>
+</defs>
+<path fill="url(#izhaviaRed)" d="M430 235 L512 317 L594 235 L594 405 L766 405 L684 487 L766 569 L594 569 L594 741 L512 659 L430 741 L430 569 L258 569 L340 487 L258 405 L430 405 Z"/>
+</svg>
