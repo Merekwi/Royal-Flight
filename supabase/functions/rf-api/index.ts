@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     if (!validText(body?.initData, 10000) || !validText(body?.action, 64)) return json({ error: "invalid_request" }, 400);
     const airlineCode = body.airlineCode;
-    if (airlineCode !== "royal" && airlineCode !== "azal") return json({ error: "invalid_airline_code" }, 400);
+    if (!["royal","azal","izavia"].includes(airlineCode)) return json({ error: "invalid_airline_code" }, 400);
     const telegram = await verifyInitData(body.initData, botToken);
     if (!telegram) return json({ error: "telegram_verification_failed" }, 401);
     const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
       display_name: telegram.name || null, updated_at: new Date().toISOString(),
       ...(isConfiguredOwner ? { role: "owner" } : {})
     }, { onConflict: "telegram_id" })
-      .select("id,telegram_id,telegram_username,display_name,role,miles,roblox_username").single();
+      .select("id,telegram_id,telegram_username,display_name,role,miles,roblox_user_id,roblox_username").single();
     if (profileError || !profile) {
       console.error("profile_upsert_failed", profileError?.message || "profile row missing");
       return json({ error: "profile_unavailable", message: "База данных не смогла сохранить профиль Telegram." }, 503);
@@ -210,7 +210,7 @@ Deno.serve(async (req) => {
     const action = body.action;
 
     if (action === "create_roblox_link") {
-      if (airlineCode !== "royal") return json({ error: "feature_not_available_for_airline", message: "Привязка Roblox доступна только в портале Royal Flight." }, 403);
+      if (!["royal","izavia"].includes(airlineCode)) return json({ error: "feature_not_available_for_airline", message: "Привязка Roblox доступна в порталах Royal Flight и Ижавиа." }, 403);
       const codeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       const bytes = crypto.getRandomValues(new Uint8Array(8));
       const linkCode = Array.from(bytes, b => codeChars[b % codeChars.length]).join("");
@@ -218,6 +218,43 @@ Deno.serve(async (req) => {
       const created = await db.from("rf_roblox_link_codes").insert({profile_id:profile.id,code:linkCode,expires_at:new Date(Date.now()+10*60*1000).toISOString()}).select("expires_at").single();
       if(created.error) return json({error:"roblox_link_code_failed"},500);
       return json({linkCode,expiresAt:created.data.expires_at,minutesValid:10});
+    }
+
+    if (action === "create_izavia_purchase_code") {
+      if (airlineCode !== "izavia") return json({error:"izavia_purchase_wrong_portal"},403);
+      const serviceId = validText(body.serviceId,64) ? body.serviceId : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(serviceId))
+        return json({error:"invalid_service_id"},400);
+      if (!profile.roblox_user_id) return json({error:"roblox_account_not_linked"},409);
+      const [serviceResult, placeSetting] = await Promise.all([
+        db.from("rf_services").select("id,name,active,payment_mode,roblox_enabled,roblox_gamepass_id,robux_price")
+          .eq("id",serviceId).eq("airline_code","izavia").eq("active",true).maybeSingle(),
+        db.from("rf_settings").select("value").eq("key","roblox_place_ids_izavia").maybeSingle()
+      ]);
+      if (serviceResult.error || placeSetting.error) return json({error:"izavia_purchase_setup_unavailable"},503);
+      const service = serviceResult.data;
+      const places = Array.isArray(placeSetting.data?.value) ? placeSetting.data.value.map((x:unknown)=>String(x)) : [];
+      if (!places.length || !/^[1-9][0-9]{0,19}$/.test(places[0]))
+        return json({error:"izavia_roblox_place_not_configured"},409);
+      if (!service || !["roblox_only","both"].includes(service.payment_mode) || service.roblox_enabled !== true ||
+          !/^[1-9][0-9]{0,19}$/.test(String(service.roblox_gamepass_id||"")) || !Number.isSafeInteger(Number(service.robux_price)) || Number(service.robux_price)<=0)
+        return json({error:"izavia_gamepass_not_configured"},409);
+      const codeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const bytes = crypto.getRandomValues(new Uint8Array(8));
+      const purchaseCode = Array.from(bytes, b => codeChars[b % codeChars.length]).join("");
+      const now = new Date();
+      await db.from("rf_izavia_purchase_codes").update({used_at:now.toISOString()})
+        .eq("profile_id",profile.id).is("used_at",null);
+      const expiresAt = new Date(now.getTime()+15*60*1000).toISOString();
+      const inserted = await db.from("rf_izavia_purchase_codes").insert({
+        code:purchaseCode, profile_id:profile.id, airline_code:"izavia", service_id:service.id,
+        gamepass_id:String(service.roblox_gamepass_id), expires_at:expiresAt
+      }).select("code,expires_at").single();
+      if (inserted.error) {
+        console.error("izavia_purchase_code_create_failed",inserted.error.message);
+        return json({error:"izavia_purchase_code_create_failed"},500);
+      }
+      return json({purchaseCode,placeId:places[0],expiresAt:inserted.data.expires_at,minutesValid:15,serviceName:service.name});
     }
 
     if (action === "dashboard") {
@@ -329,7 +366,7 @@ Deno.serve(async (req) => {
       if (serviceResult.data.payment_mode === "roblox_only") {
         return json({ error: "service_requires_roblox_payment", message: "Эту услугу можно оплатить только в Roblox за Robux." }, 409);
       }
-      const orderPrefix = airlineCode === "azal" ? "AZAL-" : "RF-";
+      const orderPrefix = airlineCode === "azal" ? "AZAL-" : airlineCode === "izavia" ? "IZH-" : "RF-";
       const orderNumber = orderPrefix + new Date().toISOString().slice(2,10).replaceAll("-","") + "-" + crypto.randomUUID().replaceAll("-","").slice(0,6).toUpperCase();
       const created = await db.from("rf_orders").insert({ airline_code: airlineCode, order_number: orderNumber, profile_id: profile.id, service_id: serviceResult.data.id,
         payment_method_id: methodResult.data.id, amount: serviceResult.data.price, currency: serviceResult.data.currency, status: "awaiting_payment" })
@@ -430,7 +467,7 @@ Deno.serve(async (req) => {
           for (const recipient of recipients.data || []) {
             try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage", {
               method:"POST", headers:{"Content-Type":"application/json"},
-              body:JSON.stringify({chat_id:recipient.telegram_id,text:"Новая заявка на трудоустройство · "+(airlineCode==="azal"?"AZAL":"Royal Flight")+"\nВакансия: "+formResult.data.title+"\nКандидат: "+(profile.display_name || profile.telegram_username || profile.telegram_id),disable_web_page_preview:true})
+              body:JSON.stringify({chat_id:recipient.telegram_id,text:"Новая заявка на трудоустройство · "+(airlineCode==="azal"?"AZAL":airlineCode==="izavia"?"Ижавиа":"Royal Flight")+"\nВакансия: "+formResult.data.title+"\nКандидат: "+(profile.display_name || profile.telegram_username || profile.telegram_id),disable_web_page_preview:true})
             }); } catch {}
           }
         }
@@ -519,7 +556,7 @@ Deno.serve(async (req) => {
       ]);
       const labels: Record<string,string> = {reviewing:"Заявка рассматривается",interview:"Приглашение на собеседование",accepted:"Заявка одобрена",rejected:"Заявка отклонена"};
       if (botToken && candidate.data) {
-        const message = "Обновлён статус вашей заявки · "+(airlineCode==="azal"?"AZAL":"Royal Flight")+"\nВакансия: "+(careerForm.data?.title || "Трудоустройство")+"\nСтатус: "+labels[nextStatus]+(note?"\nКомментарий: "+note:"");
+        const message = "Обновлён статус вашей заявки · "+(airlineCode==="azal"?"AZAL":airlineCode==="izavia"?"Ижавиа":"Royal Flight")+"\nВакансия: "+(careerForm.data?.title || "Трудоустройство")+"\nСтатус: "+labels[nextStatus]+(note?"\nКомментарий: "+note:"");
         try { await fetch("https://api.telegram.org/bot"+botToken+"/sendMessage",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chat_id:candidate.data.telegram_id,text:message,disable_web_page_preview:true})}); } catch {}
       }
       await db.from("rf_admin_audit").insert({
@@ -620,7 +657,7 @@ Deno.serve(async (req) => {
         if (duplicate.error) return json({error:"gamepass_duplicate_check_failed"},503);
         if (duplicate.data) return json({
           error:"gamepass_id_in_use",
-          message:"Этот Game Pass ID уже назначен услуге «"+duplicate.data.name+"» в портале "+(duplicate.data.airline_code==="azal"?"AZAL":"Royal Flight")+". Укажите другой ID."
+          message:"Этот Game Pass ID уже назначен услуге «"+duplicate.data.name+"» в портале "+(duplicate.data.airline_code==="azal"?"AZAL":duplicate.data.airline_code==="izavia"?"Ижавиа":"Royal Flight")+". Укажите другой ID."
         },409);
       }
       const values={airline_code:airlineCode,code:s.code.trim().toUpperCase(),name:s.name.trim(),description:typeof s.description==="string"?s.description.slice(0,1000):null,
@@ -649,7 +686,7 @@ Deno.serve(async (req) => {
       if(!validText(n.title,120)||!validText(n.body,2000))return json({error:"invalid_notification"},400);
       const scheduledAt=validText(n.scheduledAt,50)&&!Number.isNaN(Date.parse(n.scheduledAt))?new Date(n.scheduledAt).toISOString():null;
       const audience=["all","admins","roblox_linked","active_service"].includes(n.audience)?n.audience:"all";
-      if(airlineCode!=="royal"&&audience==="roblox_linked")return json({error:"feature_not_available_for_airline"},403);
+      if(!["royal","izavia"].includes(airlineCode)&&audience==="roblox_linked")return json({error:"feature_not_available_for_airline"},403);
       const result=await db.from("rf_notifications").insert({airline_code:airlineCode,title:n.title.trim(),body:n.body.trim(),audience,scheduled_at:scheduledAt,status:scheduledAt?"scheduled":"draft",created_by:telegram.id}).select().single();
       if(result.error)return json({error:"notification_save_failed"},500);
       let delivery={sent:0,failed:0};
@@ -696,6 +733,21 @@ Deno.serve(async (req) => {
       if(result.error) return json({error:"roblox_places_save_failed"},500);
       await db.from("rf_admin_audit").insert({airline_code:airlineCode,admin_telegram_id:telegram.id,action:"roblox_places_updated",entity_type:"setting",entity_id:"roblox_place_ids",details:{placeIds:ids}});
       return json({placeIds:ids});
+    }
+
+    if (action === "admin_set_izavia_roblox_place") {
+      if (airlineCode !== "izavia") return json({error:"feature_not_available_for_airline"},403);
+      const placeId = typeof body.placeId === "string" ? body.placeId.trim() : String(body.placeId||"").trim();
+      if (!/^[1-9][0-9]{0,19}$/.test(placeId)) return json({error:"invalid_izavia_place_id"},400);
+      const result = await db.from("rf_settings").upsert({
+        key:"roblox_place_ids_izavia", value:[placeId], updated_at:new Date().toISOString(), updated_by:telegram.id
+      }).select().single();
+      if (result.error) return json({error:"izavia_place_save_failed"},500);
+      await db.from("rf_admin_audit").insert({
+        airline_code:"izavia", admin_telegram_id:telegram.id, action:"izavia_roblox_place_updated",
+        entity_type:"setting", entity_id:"roblox_place_ids_izavia", details:{placeId}
+      });
+      return json({placeId});
     }
 
     if (action === "admin_set_miles_rate") {
