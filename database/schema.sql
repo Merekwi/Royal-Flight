@@ -345,8 +345,8 @@ begin
   end if;
 
   v_place_setting_key := case
-    when v_service.airline_code = 'royal' then 'roblox_place_ids'
-    else 'roblox_place_ids_' || v_service.airline_code
+    when v_service.airline_code = 'izavia' then 'roblox_place_ids_izavia'
+    else 'roblox_place_ids'
   end;
 
   if not exists (
@@ -525,8 +525,8 @@ begin
   end if;
 
   v_place_setting_key := case
-    when v_service.airline_code = 'royal' then 'roblox_place_ids'
-    else 'roblox_place_ids_' || v_service.airline_code
+    when v_service.airline_code = 'izavia' then 'roblox_place_ids_izavia'
+    else 'roblox_place_ids'
   end;
 
   if not exists (
@@ -987,8 +987,8 @@ begin
   end if;
 
   v_place_setting_key := case
-    when v_service.airline_code = 'royal' then 'roblox_place_ids'
-    else 'roblox_place_ids_' || v_service.airline_code
+    when v_service.airline_code = 'izavia' then 'roblox_place_ids_izavia'
+    else 'roblox_place_ids'
   end;
 
   if not exists (
@@ -1167,8 +1167,8 @@ begin
   end if;
 
   v_place_setting_key := case
-    when v_service.airline_code = 'royal' then 'roblox_place_ids'
-    else 'roblox_place_ids_' || v_service.airline_code
+    when v_service.airline_code = 'izavia' then 'roblox_place_ids_izavia'
+    else 'roblox_place_ids'
   end;
 
   if not exists (
@@ -1641,8 +1641,8 @@ begin
   end if;
 
   v_place_setting_key := case
-    when v_service.airline_code = 'royal' then 'roblox_place_ids'
-    else 'roblox_place_ids_' || v_service.airline_code
+    when v_service.airline_code = 'izavia' then 'roblox_place_ids_izavia'
+    else 'roblox_place_ids'
   end;
 
   if not exists (
@@ -1821,8 +1821,8 @@ begin
   end if;
 
   v_place_setting_key := case
-    when v_service.airline_code = 'royal' then 'roblox_place_ids'
-    else 'roblox_place_ids_' || v_service.airline_code
+    when v_service.airline_code = 'izavia' then 'roblox_place_ids_izavia'
+    else 'roblox_place_ids'
   end;
 
   if not exists (
