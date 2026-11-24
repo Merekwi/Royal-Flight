@@ -78,7 +78,7 @@ Changing the mode affects only future payment options. Existing orders, complete
 
 ## Ижавиа: покупки в отдельном Roblox Experience
 
-Ижавиа получает отдельный purchase flow so that Game Pass purchases are prompted inside Ижавиа's own published Roblox Experience and credited to the account/group that owns those passes. The Alliance lobby is used only for linking the player's Roblox identity to the common Telegram profile.
+Ижавиа uses a separate purchase flow. Game Pass prompts run inside Ижавиа's own published Roblox Experience, so Robux revenue is credited to the account or group that owns those passes. The Royal Alliance lobby is used only to link the player's Roblox identity to the shared Telegram profile.
 
 ### One-time setup
 1. In Supabase Edge Function Secrets, create `IZHAVIA_ROBLOX_SERVER_SECRET` with a new random secret (32+ characters). Keep it separate from `ROBLOX_SERVER_SECRET`.
