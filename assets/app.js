@@ -35,7 +35,7 @@
     const profileDesc=document.querySelector('#page-profile .page-heading .muted');if(profileDesc)profileDesc.textContent='Единый профиль участника Royal Alliance. Баланс и мили общие для всех авиакомпаний альянса.';
     const programLabel=document.getElementById('profileProgramLabel');if(programLabel)programLabel.textContent='ROYAL ALLIANCE';
     const connectedHeading=document.getElementById('connectedAccountsHeading');if(connectedHeading)connectedHeading.hidden=!a.roblox;
-    const how=document.getElementById('milesHow');if(how)how.hidden=!a.roblox;
+    const how=document.getElementById('milesHow');if(how)how.hidden=key!=='royal';
     const robloxGroup=document.getElementById('robloxConnectionGroup');if(robloxGroup)robloxGroup.hidden=!a.roblox;
     document.querySelectorAll('[data-royal-only]').forEach(el=>el.hidden=key!=='royal');
     document.querySelectorAll('[data-izavia-only]').forEach(el=>el.hidden=key!=='izavia');
